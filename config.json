@@ -1,0 +1,18 @@
+{
+  "strategy": {
+    "name": "rsi_dip",
+    "rsi_length": 2,
+    "buy_below": 10,
+    "sell_above": 50
+  },
+  "start_capital": 500,
+  "position_size": 50,
+  "max_new_per_day": 5,
+  "fee_per_order": 0,
+  "rank_by": "shares",
+  "trend_filter_200d": false,
+  "stop_loss_pct": 0,
+  "max_days_held": 0,
+  "universe": "sp500",
+  "data_feed": "sip"
+}
