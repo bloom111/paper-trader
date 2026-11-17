@@ -1,0 +1,48 @@
+name: Paper trade
+
+on:
+  schedule:
+    # 21:30 UTC on weekdays: after the US close all year (22:30 Berlin in winter, 23:30 in summer).
+    # GitHub sometimes starts scheduled runs late; anything before the next US open is fine.
+    - cron: "30 21 * * 1-5"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run: show what would happen, place no orders, save nothing"
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: paper-trader
+  cancel-in-progress: false
+
+jobs:
+  trade:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run paper trader
+        env:
+          ALPACA_KEY_ID: ${{ secrets.ALPACA_KEY_ID }}
+          ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
+          DRY_RUN: ${{ inputs.dry_run && '1' || '' }}
+        run: python paper_trader.py
+
+      - name: Save account and logs to the repository
+        if: ${{ always() && !inputs.dry_run }}
+        run: |
+          git config user.name "paper-trader"
+          git config user.email "paper-trader@users.noreply.github.com"
+          mkdir -p state
+          git add state
+          git diff --cached --quiet || git commit -m "Paper trade $(date -u +%F)"
+          git push
