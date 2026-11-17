@@ -150,25 +150,55 @@ def sma_last(values, n):
 
 
 # ---------------------------------------------------------------- universe
+TICKER = re.compile(r"[A-Z]{1,5}(\.[A-Z]{1,2})?")
+
+
+def _fetch(url):
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) paper-trader/1.1"})
+    return urllib.request.urlopen(req, timeout=30).read().decode("utf-8", errors="replace")
+
+
+def _from_wikipedia():
+    page = _fetch("https://en.wikipedia.org/wiki/List_of_S%26P_500_companies")
+    m = re.search(r'<table[^>]*id="constituents".*?</table>', page, re.S) or re.search(r'<table[^>]*wikitable.*?</table>', page, re.S)
+    if not m:
+        raise ValueError("table not found on Wikipedia")
+    syms = set()
+    for row in re.findall(r"<tr[^>]*>(.*?)</tr>", m.group(0), re.S):
+        cell = re.search(r"<t[dh][^>]*>(.*?)</t[dh]>", row, re.S)
+        if cell:
+            text = re.sub(r"<[^>]+>", "", cell.group(1)).replace("&#160;", "").strip()
+            if TICKER.fullmatch(text):
+                syms.add(text)
+    return syms
+
+
+def _from_github_dataset():
+    page = _fetch("https://raw.githubusercontent.com/datasets/s-and-p-500-companies/main/data/constituents.csv")
+    rows = list(csv.reader(page.splitlines()))
+    col = [h.strip().lower() for h in rows[0]].index("symbol")
+    return {r[col].strip() for r in rows[1:] if len(r) > col and TICKER.fullmatch(r[col].strip())}
+
+
 def sp500_symbols(state_dir):
+    """Current S&P 500 members: Wikipedia first, a GitHub dataset second, the last saved list third."""
     cache = os.path.join(state_dir, "universe.json")
-    try:
-        req = urllib.request.Request("https://en.wikipedia.org/wiki/List_of_S%26P_500_companies",
-                                     headers={"User-Agent": "Mozilla/5.0 (paper-trader)"})
-        html = urllib.request.urlopen(req, timeout=30).read().decode()
-        table = re.search(r'<table[^>]*id="constituents".*?</table>', html, re.S).group(0)
-        rows = re.findall(r"<tr>\s*<td[^>]*>(.*?)</td>", table, re.S)
-        syms = sorted({re.sub(r"<[^>]+>", "", r).strip() for r in rows} - {""})
-        if len(syms) < 450:
-            raise ValueError(f"only {len(syms)} symbols parsed")
-        with open(cache, "w") as f:
-            json.dump(syms, f)
-        return syms, None
-    except Exception as e:  # fall back to the last good list
-        if os.path.exists(cache):
-            with open(cache) as f:
-                return json.load(f), f"Could not refresh the S&P 500 list ({e}); used the saved list."
-        raise RuntimeError(f"Could not load the S&P 500 list and no saved copy exists: {e}")
+    problems = []
+    for name, source in (("Wikipedia", _from_wikipedia), ("GitHub dataset", _from_github_dataset)):
+        try:
+            syms = sorted(source())
+            if len(syms) < 450:
+                raise ValueError(f"only {len(syms)} symbols found")
+            with open(cache, "w") as f:
+                json.dump(syms, f)
+            note = f"S&P 500 list came from the {name} because Wikipedia failed ({problems[0]})." if problems else None
+            return syms, note
+        except Exception as e:
+            problems.append(f"{name}: {e}")
+    if os.path.exists(cache):
+        with open(cache) as f:
+            return json.load(f), "Could not refresh the S&P 500 list (" + "; ".join(problems) + "); used the saved list."
+    raise RuntimeError("Could not load the S&P 500 list and no saved copy exists. " + "; ".join(problems))
 
 
 # ---------------------------------------------------------------- state + logs
