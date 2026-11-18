@@ -1,0 +1,49 @@
+{
+  "cash": 500.0,
+  "fees_paid": 0.0,
+  "last_session": "2026-11-17",
+  "pending": {
+    "37f5c7ff-319e-4c61-a21f-67e551c876e7": {
+      "k": "boll",
+      "notional": 50.0,
+      "reg": "upWild",
+      "session": "2026-11-17",
+      "side": "buy",
+      "symbol": "HBAN"
+    },
+    "9b20f19d-6641-4cbe-ae6d-dfca0bb70e3c": {
+      "k": "boll",
+      "notional": 50.0,
+      "reg": "upWild",
+      "session": "2026-11-17",
+      "side": "buy",
+      "symbol": "NKE"
+    },
+    "aa2262cc-5244-4ebd-abf5-2a171a40e04a": {
+      "k": "boll",
+      "notional": 50.0,
+      "reg": "upWild",
+      "session": "2026-11-17",
+      "side": "buy",
+      "symbol": "NFLX"
+    },
+    "b29f78ce-6564-4c04-b45c-46020337f483": {
+      "k": "boll",
+      "notional": 50.0,
+      "reg": "upWild",
+      "session": "2026-11-17",
+      "side": "buy",
+      "symbol": "HOOD"
+    },
+    "bed97116-b83e-4b2f-a1a5-35ff3f332dba": {
+      "k": "boll",
+      "notional": 50.0,
+      "reg": "upWild",
+      "session": "2026-11-17",
+      "side": "buy",
+      "symbol": "PFE"
+    }
+  },
+  "positions": {},
+  "started": "2026-11-17"
+}

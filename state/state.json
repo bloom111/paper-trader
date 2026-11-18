@@ -1,0 +1,21 @@
+{
+  "cash": 500.0,
+  "fees_paid": 0.0,
+  "last_session": "2026-11-17",
+  "pending": {
+    "283fcb1f-4aa9-4a86-8782-80476e917d93": {
+      "notional": 125.0,
+      "session": "2026-11-17",
+      "side": "buy",
+      "symbol": "NKE"
+    },
+    "8df1cffd-cd7d-4a57-97b7-90ffa0c6628f": {
+      "notional": 125.0,
+      "session": "2026-11-17",
+      "side": "buy",
+      "symbol": "NVDA"
+    }
+  },
+  "positions": {},
+  "started": "2026-11-17"
+}
