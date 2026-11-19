@@ -1,26 +1,25 @@
 {
-  "cash": 248.55000010443996,
-  "fees_paid": 1.5,
-  "last_session": "2026-11-18",
-  "pending": {
-    "91f091e4-9dd6-4781-99a7-123206072e11": {
-      "k": "boll",
-      "notional": 100.0,
-      "reg": "upWild",
-      "session": "2026-11-18",
-      "side": "buy",
-      "symbol": "FCX"
-    },
-    "ee7a6856-ad82-4a66-b330-3d93eff74ca1": {
-      "k": "boll",
-      "notional": 100.0,
-      "reg": "upWild",
-      "session": "2026-11-18",
-      "side": "buy",
-      "symbol": "BAC"
-    }
-  },
+  "cash": 47.97000017660001,
+  "fees_paid": 2.1,
+  "last_session": "2026-11-19",
+  "pending": {},
   "positions": {
+    "BAC": {
+      "cost": 100.28999997029997,
+      "entry_price": 49.23,
+      "entry_session": "2026-11-19",
+      "k": "boll",
+      "qty": 2.03107861,
+      "reg": "upWild"
+    },
+    "FCX": {
+      "cost": 100.28999995753999,
+      "entry_price": 52.22,
+      "entry_session": "2026-11-19",
+      "k": "boll",
+      "qty": 1.914783607,
+      "reg": "upWild"
+    },
     "HBAN": {
       "cost": 50.28999998553,
       "entry_price": 15.17,

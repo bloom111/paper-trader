@@ -1,16 +1,15 @@
 {
-  "cash": 249.36000012728005,
-  "fees_paid": 0.66,
-  "last_session": "2026-11-18",
-  "pending": {
-    "d76bc405-a39a-42e6-b6d1-dd5f702bdba8": {
-      "notional": 125.0,
-      "session": "2026-11-18",
-      "side": "buy",
-      "symbol": "INTC"
-    }
-  },
+  "cash": 124.04000014227006,
+  "fees_paid": 0.99,
+  "last_session": "2026-11-19",
+  "pending": {},
   "positions": {
+    "INTC": {
+      "cost": 125.31999998500999,
+      "entry_price": 57.83,
+      "entry_session": "2026-11-19",
+      "qty": 2.161334947
+    },
     "NKE": {
       "cost": 125.31999999359999,
       "entry_price": 35.6,

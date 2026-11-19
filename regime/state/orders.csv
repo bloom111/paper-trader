@@ -11,3 +11,5 @@ session,order_id,symbol,side,notional,qty,status,filled_qty,filled_avg_price,fil
 2026-11-17,bed97116-b83e-4b2f-a1a5-35ff3f332dba,PFE,buy,50.0,,filled,1.773323873,28.19,2026-11-18T14:30:01.241302Z,booked 2026-11-18
 2026-11-18,ee7a6856-ad82-4a66-b330-3d93eff74ca1,BAC,buy,100.0,,accepted,,,,submitted
 2026-11-18,91f091e4-9dd6-4781-99a7-123206072e11,FCX,buy,100.0,,accepted,,,,submitted
+2026-11-18,91f091e4-9dd6-4781-99a7-123206072e11,FCX,buy,100.0,,filled,1.914783607,52.22,2026-11-19T14:31:09.291994Z,booked 2026-11-19
+2026-11-18,ee7a6856-ad82-4a66-b330-3d93eff74ca1,BAC,buy,100.0,,filled,2.03107861,49.23,2026-11-19T14:31:58.632115Z,booked 2026-11-19
