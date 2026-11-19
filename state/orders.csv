@@ -1,3 +1,6 @@
 session,order_id,symbol,side,notional,qty,status,filled_qty,filled_avg_price,filled_at,note
 2026-11-17,8df1cffd-cd7d-4a57-97b7-90ffa0c6628f,NVDA,buy,125.0,,accepted,,,,submitted
 2026-11-17,283fcb1f-4aa9-4a86-8782-80476e917d93,NKE,buy,125.0,,accepted,,,,submitted
+2026-11-17,283fcb1f-4aa9-4a86-8782-80476e917d93,NKE,buy,125.0,,filled,3.510955056,35.6,2026-11-18T14:30:05.907759Z,booked 2026-11-18
+2026-11-17,8df1cffd-cd7d-4a57-97b7-90ffa0c6628f,NVDA,buy,125.0,,filled,0.784965144,159.23,2026-11-18T14:30:00.107114Z,booked 2026-11-18
+2026-11-18,d76bc405-a39a-42e6-b6d1-dd5f702bdba8,INTC,buy,125.0,,accepted,,,,submitted

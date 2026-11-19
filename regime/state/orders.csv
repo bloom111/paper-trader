@@ -4,3 +4,10 @@ session,order_id,symbol,side,notional,qty,status,filled_qty,filled_avg_price,fil
 2026-11-17,aa2262cc-5244-4ebd-abf5-2a171a40e04a,NFLX,buy,50.0,,accepted,,,,submitted
 2026-11-17,37f5c7ff-319e-4c61-a21f-67e551c876e7,HBAN,buy,50.0,,accepted,,,,submitted
 2026-11-17,b29f78ce-6564-4c04-b45c-46020337f483,HOOD,buy,50.0,,accepted,,,,submitted
+2026-11-17,37f5c7ff-319e-4c61-a21f-67e551c876e7,HBAN,buy,50.0,,filled,3.295319709,15.17,2026-11-18T14:31:40.587162Z,booked 2026-11-18
+2026-11-17,9b20f19d-6641-4cbe-ae6d-dfca0bb70e3c,NKE,buy,50.0,,filled,1.408169014,35.5,2026-11-18T14:30:01.202912Z,booked 2026-11-18
+2026-11-17,aa2262cc-5244-4ebd-abf5-2a171a40e04a,NFLX,buy,50.0,,filled,0.834696944,59.89,2026-11-18T14:30:01.229341Z,booked 2026-11-18
+2026-11-17,b29f78ce-6564-4c04-b45c-46020337f483,HOOD,buy,50.0,,filled,0.724492753,69.0,2026-11-18T14:30:01.150868Z,booked 2026-11-18
+2026-11-17,bed97116-b83e-4b2f-a1a5-35ff3f332dba,PFE,buy,50.0,,filled,1.773323873,28.19,2026-11-18T14:30:01.241302Z,booked 2026-11-18
+2026-11-18,ee7a6856-ad82-4a66-b330-3d93eff74ca1,BAC,buy,100.0,,accepted,,,,submitted
+2026-11-18,91f091e4-9dd6-4781-99a7-123206072e11,FCX,buy,100.0,,accepted,,,,submitted
