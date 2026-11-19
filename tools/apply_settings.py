@@ -8,6 +8,7 @@ Usage: python tools/apply_settings.py rsi|regime SAVED.json
     regime: from the scanner page (keys like regime/config.json: mode, map, mult, rsi, size, ...)
 Prints one JSON line: {"status": "applied" | "unchanged" | "refused", "reason": "...", "file": "..."}.
 Only the editable keys are taken from SAVED.json; every other key of the config file is kept.
+`pause` (the non-trading period) is optional: when SAVED.json has none, the config file's is kept.
 """
 import json
 import os
@@ -20,6 +21,15 @@ REGIMES = ["upCalm", "upWild", "downCalm", "downWild"]
 
 def num(v, lo, hi, integer=False):
     return isinstance(v, (int, float)) and not isinstance(v, bool) and lo <= v <= hi and (not integer or float(v).is_integer())
+
+
+def check_pause(c):
+    """The non-trading period is optional in saved settings; when present it must be valid."""
+    if "pause" not in c:
+        return []
+    p = c["pause"]
+    ok = (isinstance(p, dict) and isinstance(p.get("on"), bool) and num(p.get("drop5_pct"), 1, 20) and num(p.get("vol_pct"), 5, 80))
+    return [] if ok else ["Non-trading period: on or off, 5-day fall 1–20%, volatility 5–80%."]
 
 
 def check_rsi(c):
@@ -36,7 +46,7 @@ def check_rsi(c):
         (num(c.get("stop_loss_pct"), 0, 50), "Stop-loss must be from 0 to 50%."),
         (num(c.get("max_days_held"), 0, 60, True), "Most days held must be a whole number from 0 to 60."),
     ]
-    return [msg for ok, msg in tests if not ok]
+    return [msg for ok, msg in tests if not ok] + check_pause(c)
 
 
 def check_regime(c):
@@ -62,7 +72,7 @@ def check_regime(c):
     t(isinstance(c.get("trend"), bool) and num(c.get("stop"), 0, 50) and num(c.get("maxHold"), 0, 60, True), "Stop-loss 0–50%, most days held 0–60.")
     t(num(c.get("size"), 5, 1000) and num(c.get("maxNew"), 1, 20, True) and num(c.get("fee"), 0, 20) and c.get("rank") in ("shares", "value"),
       "Per position 5–1000, new buys per day 1–20, fee 0–20.")
-    return out
+    return out + check_pause(c)
 
 
 RSI_KEYS = [("strategy", "rsi_length"), ("strategy", "buy_below"), ("strategy", "sell_above"), ("position_size",), ("max_new_per_day",),
@@ -97,6 +107,8 @@ def main(bot, saved_path):
     else:
         for k in REGIME_KEYS:
             new[k] = clean_numbers(json.loads(json.dumps(saved[k])))
+    if "pause" in saved:   # pages that don't know the setting yet leave it as it is
+        new["pause"] = {k: clean_numbers(saved["pause"][k]) for k in ("on", "drop5_pct", "vol_pct")}
     if new == cur:
         print(json.dumps({"status": "unchanged", "reason": "", "file": path}))
         return

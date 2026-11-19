@@ -23,6 +23,7 @@ import sys
 import time
 from datetime import datetime, timedelta, timezone
 
+import market_filter
 from paper_trader import (OPEN_STATES, APIError, AlpacaAPI, append_log, load_json, money, parse_ts,
                           save_json, sp500_symbols)
 import paper_trader
@@ -237,6 +238,7 @@ def run(api, cfg, state_dir, dry_run=False, symbols=None, log=print):
         raise RuntimeError(f"No {mkt} price for {session}, so the market type can't be measured. Stopping without trading.")
 
     trend, vol = market_measures([x["c"] for x in series[mkt]])
+    paused, pause_reason, _ = market_filter.check([x["c"] for x in series[mkt]], cfg)
     reg = regime_of(trend, vol, cfg)
     if cfg.get("mode") == "regime":
         strat_now = (cfg["map"].get(reg) or "none") if reg else "none"
@@ -299,6 +301,8 @@ def run(api, cfg, state_dir, dry_run=False, symbols=None, log=print):
     for rank, (sym, _, val, last) in enumerate(cands):
         if rank >= int(cfg["maxNew"]):
             action = "not ranked high enough"
+        elif paused:
+            action = "skipped, non-trading period"
         elif available >= size + fee:
             new_orders.append({"symbol": sym, "side": "buy", "notional": round(size, 2), "why": strat_now, "k": strat_now, "reg": reg})
             available -= size + fee
@@ -348,6 +352,8 @@ def run(api, cfg, state_dir, dry_run=False, symbols=None, log=print):
                    f"New buys use **{STRAT_LABEL[strat_now]}**" + (f", {money(size)} each." if strat_now != "none" else "."))
     summary.append(f"Account value **{money(equity)}** ({(equity / start_cap - 1) * 100:+.1f}% since {st['started']}), "
                    f"cash {money(st['cash'])}, {len(st['positions'])} open position(s).")
+    if paused:
+        summary.append(f"\n**Non-trading period: no new buys.** {pause_reason[0].upper() + pause_reason[1:]}.")
     if trade_rows:
         summary.append("\n**Closed today**\n\n| Stock | Strategy | Days | Return | P&L |\n|---|---|---|---|---|")
         summary += [f"| {t['symbol']} | {STRAT_LABEL.get(t['strategy'], t['strategy'])} | {t['days_held']} | {t['return_pct']:+.2f}% | {money(t['pnl'], True)} |" for t in trade_rows]
@@ -374,7 +380,8 @@ def run(api, cfg, state_dir, dry_run=False, symbols=None, log=print):
         log_rows(state_dir, "trades.csv", trade_rows)
         log_rows(state_dir, "signals.csv", signal_rows)
         log_rows(state_dir, "equity.csv", [eq_row])
-    return {"session": session, "equity": equity, "orders": new_orders, "trades": trade_rows, "summary": text, "market": reg}
+    return {"session": session, "equity": equity, "orders": new_orders, "trades": trade_rows, "summary": text, "market": reg,
+            "paused": paused, "pause_reason": pause_reason}
 
 
 def main():

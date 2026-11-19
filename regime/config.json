@@ -24,5 +24,6 @@
   "rank": "shares",
   "universe": "sp500",
   "market_symbol": "SPY",
-  "data_feed": "sip"
+  "data_feed": "sip",
+  "pause": { "on": true, "drop5_pct": 4, "vol_pct": 25 }
 }

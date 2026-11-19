@@ -14,6 +14,7 @@ import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
+import market_filter  # noqa: E402
 import paper_trader  # noqa: E402
 import regime_trader  # noqa: E402
 
@@ -70,7 +71,8 @@ def main(out):
         ["rsi_length", c["strategy"]["rsi_length"]], ["buy_below", c["strategy"]["buy_below"]], ["sell_above", c["strategy"]["sell_above"]],
         ["position_size", c["position_size"]], ["max_new_per_day", c["max_new_per_day"]], ["fee_per_order", c["fee_per_order"]],
         ["rank_by", c["rank_by"]], ["trend_filter_200d", str(c["trend_filter_200d"]).lower()], ["stop_loss_pct", c["stop_loss_pct"]],
-        ["max_days_held", c["max_days_held"]], ["start_capital", c["start_capital"]]])
+        ["max_days_held", c["max_days_held"]], ["start_capital", c["start_capital"]],
+        ["non_trading_period", market_filter.describe(c)]])
 
     # Market-type bot
     md = os.path.join(ROOT, "regime", "state")
@@ -103,6 +105,7 @@ def main(out):
              ["Stop-loss", f"{m['stop']:g}%" if m["stop"] else "off"], ["Most days held", m["maxHold"] or "no limit"]]
     if m.get("volSize"):
         rows.append(["Size by volatility", f"normal at {m['volTarget']:g}%, between ×{m['multMin']:g} and ×{m['multMax']:g}"])
+    rows.append(["Non-trading period", market_filter.describe(m)])
     rows.append(["Start budget", f"${m['capital']:g}"])
     write_rows(os.path.join(out, "mt_config.csv"), ["setting", "value"], rows)
 

@@ -29,6 +29,8 @@ import urllib.parse
 import urllib.request
 from datetime import datetime, timedelta, timezone
 
+import market_filter
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 OPEN_STATES = {"new", "accepted", "pending_new", "partially_filled", "held", "accepted_for_bidding",
                "calculated", "pending_replace", "pending_cancel", "done_for_day", "replaced", "stopped", "suspended"}
@@ -339,7 +341,7 @@ def run(api, cfg, state_dir, dry_run=False, symbols=None, log=print):
     if universe_note:
         notes.append(universe_note)
     need = sorted(set(symbols) | set(st["positions"]) | {"SPY"})
-    lookback_days = 330 if cfg.get("trend_filter_200d") else 70
+    lookback_days = 330 if cfg.get("trend_filter_200d") else 100   # 100: enough for the non-trading check
     start = (datetime.fromisoformat(session) - timedelta(days=lookback_days)).date().isoformat()
     end = (datetime.now(timezone.utc) - timedelta(minutes=16)).strftime("%Y-%m-%dT%H:%M:%SZ")
     bars = api.daily_bars(need, start, end)
@@ -356,6 +358,13 @@ def run(api, cfg, state_dir, dry_run=False, symbols=None, log=print):
     fresh = sum(1 for s in symbols if s in info)
     if fresh < 0.8 * len(symbols):
         raise RuntimeError(f"Only {fresh} of {len(symbols)} stocks have a price for {session}. Stopping without trading.")
+    spy = [x["c"] for x in bars.get("SPY", []) if x["date"] <= session]
+    if len(spy) >= market_filter.MIN_CLOSES:
+        paused, pause_reason, _ = market_filter.check(spy, cfg)
+    else:
+        paused, pause_reason = False, ""
+        if market_filter.settings(cfg)["on"]:
+            notes.append("Not enough SPY prices to check for a non-trading period; traded normally.")
 
     # ---- 3. exits
     new_orders, signal_rows = [], []
@@ -398,6 +407,8 @@ def run(api, cfg, state_dir, dry_run=False, symbols=None, log=print):
         i = info[sym]
         if rank >= int(cfg["max_new_per_day"]):
             action = "not ranked high enough"
+        elif paused:
+            action = "skipped, non-trading period"
         elif available >= size + fee:
             new_orders.append({"symbol": sym, "side": "buy", "notional": round(size, 2), "why": "rsi"})
             available -= size + fee
@@ -443,6 +454,8 @@ def run(api, cfg, state_dir, dry_run=False, symbols=None, log=print):
     summary.append(f"## Paper trade, session {session}{' (dry run, nothing placed or saved)' if dry_run else ''}")
     summary.append(f"Account value **${equity:,.2f}** ({(equity / start_cap - 1) * 100:+.1f}% since {st['started']}), "
                    f"cash ${st['cash']:,.2f}, {len(st['positions'])} open position(s).")
+    if paused:
+        summary.append(f"\n**Non-trading period: no new buys.** {pause_reason[0].upper() + pause_reason[1:]}.")
     if trade_rows:
         summary.append("\n**Closed today**\n\n| Stock | Days | Return | P&L |\n|---|---|---|---|")
         summary += [f"| {t['symbol']} | {t['days_held']} | {t['return_pct']:+.2f}% | {money(t['pnl'], True)} |" for t in trade_rows]
@@ -470,7 +483,8 @@ def run(api, cfg, state_dir, dry_run=False, symbols=None, log=print):
         append_log(state_dir, "trades.csv", trade_rows)
         append_log(state_dir, "signals.csv", signal_rows)
         append_log(state_dir, "equity.csv", [eq_row])
-    return {"session": session, "equity": equity, "orders": new_orders, "trades": trade_rows, "summary": text}
+    return {"session": session, "equity": equity, "orders": new_orders, "trades": trade_rows, "summary": text,
+            "paused": paused, "pause_reason": pause_reason}
 
 
 def main():

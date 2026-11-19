@@ -74,8 +74,36 @@ Edit `config.json`. Changes apply from the next run.
 | `trend_filter_200d` | `true`: only buy stocks above their own 200-day average |
 | `stop_loss_pct` | sell early if a position falls this many % below its buy price (`0` = off) |
 | `max_days_held` | sell after this many trading days at the latest (`0` = off) |
+| `pause.on` | `true`: no new buys during a non-trading period (see below) |
+| `pause.drop5_pct` | non-trading when SPY fell more than this many % over the last 5 trading days |
+| `pause.vol_pct` | non-trading when SPY's 20-day volatility is above this many % and higher than 20 trading days earlier |
 
 To **start over**, delete the files in the `state` folder. The next run begins again with `start_capital`.
+
+## Non-trading periods
+
+Both bots (this one and the market-type bot in `regime/`) stop opening new positions while the market is under stress:
+SPY fell more than 4% in 5 trading days, or its volatility is above 25% and still rising. Positions they already hold
+are still sold by their normal rules. The run summary says when a day is a non-trading day, and `signals.csv` marks
+the buys it skipped as `skipped, non-trading period`.
+
+In the scanner's backtest (2019–2024) this paused about one day in ten and roughly halved the largest drop of both bots,
+at the cost of some upside in fast rebounds such as spring 2020. The logic is in `market_filter.py`; the settings are
+`pause` in `config.json` and `regime/config.json`.
+
+## Market data archive
+
+After the bots, each run saves that day's prices of every S&P 500 stock and SPY in `data/` (about 8 MB a year):
+
+- `data/bars/YYYY-MM.csv`: open, high, low, close, volume, VWAP and number of trades per stock and day, as traded (not adjusted).
+- `data/splits.csv`: stock splits, to adjust older prices. Dividends are not adjusted.
+- `data/sp500_members.csv`: when each stock was first and last seen in the S&P 500 list.
+
+Sessions a run missed are filled in by the next one. To download history once, start **Actions → Paper trade → Run workflow**
+with **Dry run** unticked and a date such as `2020-01-01` in **Market data: also download all prices from this date on**.
+The history covers today's S&P 500 members only, so stocks that left the index are missing from it.
+
+`python tools/archive_files.py OUT_DIR` turns the archive into the files used by the Market Data page and the scanner.
 
 ## Good to know
 
