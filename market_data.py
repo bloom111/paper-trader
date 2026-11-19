@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Market data archive: daily prices of every S&P 500 stock and SPY, kept in ./data for backtesting.
+Market data archive: daily prices of every S&P 500 stock, SPY and VT, kept in ./data for backtesting.
 
 Runs after the bots each weekday. Adds every finished session of the last two weeks that the archive
 doesn't have yet, so a missed evening is filled in by the next run.
@@ -34,6 +34,9 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 DATA = os.path.join(HERE, "data")
 BAR_COLS = ["date", "symbol", "open", "high", "low", "close", "volume", "vwap", "trades"]
 MARKET = "SPY"
+# Benchmarks archived next to the stocks. VT (Vanguard Total World Stock ETF) stands in for the
+# FTSE All-World: it tracks the FTSE Global All Cap index and trades in the US, so Alpaca has it.
+BENCHMARKS = ["SPY", "VT"]
 
 
 # ---------------------------------------------------------------- download
@@ -157,7 +160,7 @@ def run(api, start=None, log=print):
     symbols, note = sp500_symbols(os.path.join(HERE, "state"))
     if note:
         log(note)
-    need = sorted(set(symbols) | {MARKET})
+    need = sorted(set(symbols) | set(BENCHMARKS))
     # one extra session before the first missing one, so a split on that day is still detected
     lo = min(missing)
     earlier = [s for s in sessions if s < lo]

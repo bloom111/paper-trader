@@ -3,9 +3,11 @@
 Build the dashboard's data files from both bots' results.
 
 Usage: python tools/dashboard_files.py OUT_DIR
-Writes 12 CSV files into OUT_DIR (header-only where a bot has no results yet):
+Writes 13 CSV files into OUT_DIR (header-only where a bot has no results yet):
   RSI bot:          equity.csv trades.csv orders.csv signals.csv positions.csv config.csv
   Market-type bot:  mt_equity.csv mt_trades.csv mt_orders.csv mt_signals.csv mt_positions.csv mt_config.csv
+  Both:             benchmarks.csv  session,spy_close,vt_close for every day either bot has a result
+                    (SPY from the bots' logs, VT = FTSE All-World stand-in from the market data archive)
 """
 import csv
 import json
@@ -58,6 +60,27 @@ def positions(state_path, extra=False):
     return rows
 
 
+def benchmarks(out):
+    """SPY and VT closes on every session either bot has logged."""
+    days = {}
+    for path in (os.path.join(ROOT, "state", "equity.csv"), os.path.join(ROOT, "regime", "state", "equity.csv")):
+        if os.path.exists(path):
+            with open(path, newline="") as f:
+                for r in csv.DictReader(f):
+                    if r.get("session"):
+                        d = days.setdefault(r["session"], {"spy": "", "vt": ""})
+                        d["spy"] = d["spy"] or r.get("spy_close", "")
+    for m in {s[:7] for s in days}:
+        path = os.path.join(ROOT, "data", "bars", f"{m}.csv")
+        if os.path.exists(path):
+            with open(path, newline="") as f:
+                for r in csv.DictReader(f):
+                    if r["symbol"] == "VT" and r["date"] in days:
+                        days[r["date"]]["vt"] = r["close"]
+    write_rows(os.path.join(out, "benchmarks.csv"), ["session", "spy_close", "vt_close"],
+               [[s, days[s]["spy"], days[s]["vt"]] for s in sorted(days)])
+
+
 def main(out):
     os.makedirs(out, exist_ok=True)
     # RSI bot
@@ -108,6 +131,7 @@ def main(out):
     rows.append(["Non-trading period", market_filter.describe(m)])
     rows.append(["Start budget", f"${m['capital']:g}"])
     write_rows(os.path.join(out, "mt_config.csv"), ["setting", "value"], rows)
+    benchmarks(out)
 
 
 if __name__ == "__main__":

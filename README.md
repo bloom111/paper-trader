@@ -93,7 +93,9 @@ at the cost of some upside in fast rebounds such as spring 2020. The logic is in
 
 ## Market data archive
 
-After the bots, each run saves that day's prices of every S&P 500 stock and SPY in `data/` (about 8 MB a year):
+After the bots, each run saves that day's prices of every S&P 500 stock, SPY and VT in `data/` (about 8 MB a year).
+VT, Vanguard's Total World Stock ETF, stands in for the FTSE All-World, which has no US-listed fund that Alpaca carries;
+the dashboard and the scanner compare both bots with it as well as with the S&P 500:
 
 - `data/bars/YYYY-MM.csv`: open, high, low, close, volume, VWAP and number of trades per stock and day, as traded (not adjusted).
 - `data/splits.csv`: stock splits, to adjust older prices. Dividends are not adjusted.
