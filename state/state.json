@@ -1,8 +1,21 @@
 {
   "cash": 124.04000014227006,
   "fees_paid": 0.99,
-  "last_session": "2026-11-19",
-  "pending": {},
+  "last_session": "2026-11-20",
+  "pending": {
+    "724851a8-7130-4cdc-b6bf-5067f3aabcb3": {
+      "qty": 2.161334947,
+      "session": "2026-11-20",
+      "side": "sell",
+      "symbol": "INTC"
+    },
+    "75562072-ed63-4517-8699-b022f6aeee03": {
+      "qty": 0.784965144,
+      "session": "2026-11-20",
+      "side": "sell",
+      "symbol": "NVDA"
+    }
+  },
   "positions": {
     "INTC": {
       "cost": 125.31999998500999,
