@@ -1,13 +1,40 @@
 {
   "mode": "regime",
   "strat": "rsi",
-  "map": { "upCalm": "breakout", "upWild": "boll", "downCalm": "rsi", "downWild": "rsi" },
-  "mult": { "upCalm": 1, "upWild": 1, "downCalm": 1, "downWild": 1 },
-  "rsi": { "n": 2, "lo": 10, "hi": 55 },
-  "sma": { "f": 20, "s": 50 },
-  "macd": { "f": 12, "s": 26, "g": 9 },
-  "boll": { "n": 20, "k": 2 },
-  "breakout": { "n": 50, "m": 20 },
+  "map": {
+    "upCalm": "macd",
+    "upWild": "breakout",
+    "downCalm": "rsi",
+    "downWild": "sma"
+  },
+  "mult": {
+    "upCalm": 1,
+    "upWild": 1,
+    "downCalm": 1,
+    "downWild": 1
+  },
+  "rsi": {
+    "n": 5,
+    "lo": 25,
+    "hi": 75
+  },
+  "sma": {
+    "f": 20,
+    "s": 50
+  },
+  "macd": {
+    "f": 19,
+    "s": 39,
+    "g": 9
+  },
+  "boll": {
+    "n": 20,
+    "k": 2
+  },
+  "breakout": {
+    "n": 50,
+    "m": 20
+  },
   "trendTh": 0,
   "volTh": 20,
   "volSize": false,
@@ -25,5 +52,9 @@
   "universe": "sp500",
   "market_symbol": "SPY",
   "data_feed": "sip",
-  "pause": { "on": true, "drop5_pct": 4, "vol_pct": 25 }
+  "pause": {
+    "on": true,
+    "drop5_pct": 4,
+    "vol_pct": 25
+  }
 }
