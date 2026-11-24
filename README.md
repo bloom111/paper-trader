@@ -129,6 +129,10 @@ The history covers today's S&P 500 members only, so stocks that left the index a
 Each position is sold by the rule of the strategy that bought it. The rules and formulas are the same as on the S&P 500 Dip Scanner page; on a replay of 2020–2022 data the bot made exactly the same trades as the scanner's backtest.
 
 - **Settings:** `regime/config.json`. Change them in the scanner page with **Use for paper trading**; the scheduled task writes them here before the next evening run.
+- **Fees:** each order pays `fee` + `feePct` % of the order value + `feePerShare` per share, at least `feeMin`, and at most
+  `feeMaxPct` % of the order value (0 = no cap). The default mirrors Interactive Brokers Pro Fixed for US stocks:
+  `feePerShare` 0.0035, `feeMin` 0.35, `feeMaxPct` 1 (so a $100 order pays $0.35, a $5,000 order of 100 shares $0.35,
+  1,000 shares $3.50). Alpaca: all 0. A €1 broker: `fee` 1. Without the four keys the bot charges the flat `fee`.
 - **Results:** `regime/state/` with the same files as the RSI bot, plus the strategy and market type of each trade, and the market measures in `equity.csv`.
 - **Keys:** create a second paper account in Alpaca, generate its API keys, and add them as repository secrets `ALPACA_REGIME_KEY_ID` and `ALPACA_REGIME_SECRET_KEY`. Until they exist, the bot skips itself and the RSI bot runs as before.
 

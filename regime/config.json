@@ -47,7 +47,7 @@
   "size": 100,
   "maxNew": 2,
   "capital": 500,
-  "fee": 0.3,
+  "fee": 0,
   "rank": "shares",
   "universe": "sp500",
   "market_symbol": "SPY",
@@ -56,5 +56,9 @@
     "on": true,
     "drop5_pct": 4,
     "vol_pct": 25
-  }
+  },
+  "feePct": 0,
+  "feePerShare": 0.0035,
+  "feeMin": 0.35,
+  "feeMaxPct": 1
 }

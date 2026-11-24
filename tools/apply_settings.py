@@ -72,6 +72,9 @@ def check_regime(c):
     t(isinstance(c.get("trend"), bool) and num(c.get("stop"), 0, 50) and num(c.get("maxHold"), 0, 60, True), "Stop-loss 0–50%, most days held 0–60.")
     t(num(c.get("size"), 5, 1000) and num(c.get("maxNew"), 1, 20, True) and num(c.get("fee"), 0, 20) and c.get("rank") in ("shares", "value"),
       "Per position 5–1000, new buys per day 1–20, fee 0–20.")
+    if "feePerShare" in c:   # broker fee schedule (pages that don't know it yet leave it as it is)
+        t(num(c.get("feePct"), 0, 5) and num(c.get("feePerShare"), 0, 0.1) and num(c.get("feeMin"), 0, 20) and num(c.get("feeMaxPct"), 0, 5),
+          "Fees: % of order 0–5, per share 0–0.1, minimum 0–20, cap 0–5% (0 = no cap).")
     return out + check_pause(c)
 
 
@@ -107,6 +110,12 @@ def main(bot, saved_path):
     else:
         for k in REGIME_KEYS:
             new[k] = clean_numbers(json.loads(json.dumps(saved[k])))
+    if bot != "rsi":   # broker fee schedule; a page without it saves a flat fee per order only
+        for k in ("feePct", "feePerShare", "feeMin", "feeMaxPct"):
+            if "feePerShare" in saved:
+                new[k] = clean_numbers(saved[k])
+            else:
+                new.pop(k, None)
     if "pause" in saved:   # pages that don't know the setting yet leave it as it is
         new["pause"] = {k: clean_numbers(saved["pause"][k]) for k in ("on", "drop5_pct", "vol_pct")}
     if new == cur:

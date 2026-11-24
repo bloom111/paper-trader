@@ -142,10 +142,27 @@ def size_mult(vol, cfg):
     return min(cfg["multMax"], max(cfg["multMin"], (cfg["volTarget"] / 100) / vol))
 
 
+def order_fee(cfg, qty, px):
+    """Broker commission for one order of qty shares at px.
+
+    fee + feePct % of the order value + feePerShare per share, at least feeMin and,
+    when feeMaxPct > 0, at most feeMaxPct % of the order value. Missing keys count as 0,
+    so a config with only "fee" keeps the old flat fee per order.
+    IBKR Pro Fixed (US stocks): feePerShare 0.0035, feeMin 0.35, feeMaxPct 1.
+    """
+    value = qty * px
+    if value <= 0:
+        return 0.0
+    f = float(cfg.get("fee", 0)) + value * float(cfg.get("feePct", 0)) / 100 + qty * float(cfg.get("feePerShare", 0))
+    f = max(f, float(cfg.get("feeMin", 0)))
+    if float(cfg.get("feeMaxPct", 0)) > 0:
+        f = min(f, value * float(cfg["feeMaxPct"]) / 100)
+    return f
+
+
 # ---------------------------------------------------------------- main logic
 def run(api, cfg, state_dir, dry_run=False, symbols=None, log=print):
     os.makedirs(state_dir, exist_ok=True)
-    fee = float(cfg.get("fee", 0))
     state_path = os.path.join(state_dir, "state.json")
     st = load_json(state_path, None) or {"cash": float(cfg["capital"]), "positions": {}, "pending": {},
                                          "last_session": None, "started": None, "fees_paid": 0.0}
@@ -181,6 +198,7 @@ def run(api, cfg, state_dir, dry_run=False, symbols=None, log=print):
         px = float(o.get("filled_avg_price") or 0)
         sym = p["symbol"]
         if q > 0 and p["side"] == "buy":
+            fee = order_fee(cfg, q, px)
             cost = q * px + fee
             st["cash"] -= cost
             st["fees_paid"] += fee
@@ -190,6 +208,7 @@ def run(api, cfg, state_dir, dry_run=False, symbols=None, log=print):
             pos = st["positions"][sym]
             share = min(1.0, q / pos["qty"])
             cost_part = pos["cost"] * share
+            fee = order_fee(cfg, q, px)
             proceeds = q * px - fee
             st["cash"] += proceeds
             st["fees_paid"] += fee
@@ -277,7 +296,7 @@ def run(api, cfg, state_dir, dry_run=False, symbols=None, log=print):
             reason = "max days"
         if reason:
             new_orders.append({"symbol": sym, "side": "sell", "qty": round(pos["qty"], 9), "why": reason, "k": k})
-            est_proceeds += pos["qty"] * close - fee
+            est_proceeds += pos["qty"] * close - order_fee(cfg, pos["qty"], close)
             signal_rows.append({"session": session, "symbol": sym, "strategy": k, "value": round(val, 2) if val is not None else "",
                                 "close": close, "volume": series[sym][-1]["v"], "action": f"sell ({reason})"})
 
@@ -299,6 +318,7 @@ def run(api, cfg, state_dir, dry_run=False, symbols=None, log=print):
         cands.sort(key=lambda x: x[1], reverse=True)
     available = st["cash"] + est_proceeds
     for rank, (sym, _, val, last) in enumerate(cands):
+        fee = order_fee(cfg, size / last["c"], last["c"]) if last["c"] else 0.0
         if rank >= int(cfg["maxNew"]):
             action = "not ranked high enough"
         elif paused:
