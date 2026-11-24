@@ -131,3 +131,17 @@ Each position is sold by the rule of the strategy that bought it. The rules and 
 - **Settings:** `regime/config.json`. Change them in the scanner page with **Use for paper trading**; the scheduled task writes them here before the next evening run.
 - **Results:** `regime/state/` with the same files as the RSI bot, plus the strategy and market type of each trade, and the market measures in `equity.csv`.
 - **Keys:** create a second paper account in Alpaca, generate its API keys, and add them as repository secrets `ALPACA_REGIME_KEY_ID` and `ALPACA_REGIME_SECRET_KEY`. Until they exist, the bot skips itself and the RSI bot runs as before.
+
+## Survivorship-free backtest data
+
+The archive above only has stocks that are in the S&P 500 today, which makes backtests look better than they were:
+they never meet companies that later dropped out (SVB, Signature Bank, First Republic, takeovers, demotions) and they
+trade stocks before they joined the index. **Actions → Fetch removed S&P 500 stocks → Run workflow** (places no orders) runs
+`tools/fetch_removed.py`, which saves:
+
+- `data/sp500_history.csv`: every period each ticker was in the S&P 500 since the start date, from
+  [github.com/fja05680/sp500](https://github.com/fja05680/sp500) (MIT licence).
+- `data/removed/bars.csv`: split-adjusted daily prices from Alpaca of every ticker in that list that isn't in today's index.
+- `data/removed/summary.csv`: which tickers got prices and which didn't.
+
+A backtest then only buys a stock on days it was in the index, and still holds and sells stocks after they leave it.
