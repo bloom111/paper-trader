@@ -7,7 +7,11 @@ Writes into OUT_DIR:
   summary.json          coverage per month, SPY closes and non-trading days, splits (for the Market Data page)
   sp500_archive.json    split-adjusted prices in the scanner's format (dates, tickers, names, open, close, vol, index),
                         open/close in US cents, index = SPY close, bench2 = VT close (FTSE All-World stand-in);
-                        last N years only (default 5)
+                        last N years only (default 5). When data/sp500_history.csv and data/removed/bars.csv exist
+                        (tools/fetch_removed.py), it also has the stocks that left the index and `members`: for each
+                        ticker, the [start, end) date ranges it was in the S&P 500 (end "" = still in it), so a backtest
+                        buys only index members of that day; `endValue` gives the value in cents of shares whose
+                        prices stop because the company failed (SVB, First Republic).
   bars/YYYY-MM.csv      copies of the monthly files (unadjusted, as archived)
 """
 import csv
@@ -26,6 +30,18 @@ DATA = os.path.join(ROOT, "data")
 MARKET = "SPY"
 WORLD = "VT"   # stand-in for the FTSE All-World
 NOT_STOCKS = {MARKET, WORLD}
+WIPED = {"SIVB": 0, "FRC": 0}   # bank failures: shareholders got nothing after the last trade
+
+
+def memberships():
+    """{ticker: [[start, end], ...]} from data/sp500_history.csv; tickers missing there use sp500_members.csv."""
+    out = {}
+    for r in read_csv(os.path.join(DATA, "sp500_history.csv")):
+        out.setdefault(r["symbol"], []).append([r["start"], r["end"]])
+    if out:
+        for r in read_csv(os.path.join(DATA, "sp500_members.csv")):
+            out.setdefault(r["symbol"], [[r["first_seen"], ""]])
+    return out
 
 
 def read_csv(path):
@@ -59,6 +75,14 @@ def main(out, years=5):
             f = factor(r["symbol"], r["date"])
             px.setdefault(r["symbol"], {})[r["date"]] = (float(r["open"]) * f, float(r["close"]) * f, float(r["volume"]) / f)
 
+    # stocks that left the S&P 500 (already split-adjusted); only tickers the archive itself lacks
+    removed = {}
+    for r in read_csv(os.path.join(DATA, "removed", "bars.csv")):
+        if r["symbol"] not in px:
+            removed.setdefault(r["symbol"], {})[r["date"]] = (float(r["open"]), float(r["close"]), float(r["volume"]))
+    px.update(removed)
+    members = memberships()
+
     spy = px.get(MARKET, {})
     all_dates = sorted(spy)
     spy_c = [spy[d][1] for d in all_dates]
@@ -72,7 +96,7 @@ def main(out, years=5):
     summary = {
         "updatedAt": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "first": all_dates[0] if all_dates else None, "last": all_dates[-1] if all_dates else None,
-        "sessions": len(all_dates), "symbols": len([s for s in px if s not in NOT_STOCKS]),
+        "sessions": len(all_dates), "symbols": len([s for s in px if s not in NOT_STOCKS and s not in removed]),
         "rows": sum(m["rows"] for m in months), "bytes": sum(m["bytes"] for m in months),
         "months": months,
         "spy": [[d, round(c, 2), p] for d, c, p in zip(all_dates, spy_c, pause)],
@@ -87,7 +111,9 @@ def main(out, years=5):
     if all_dates:
         cut = str(int(all_dates[-1][:4]) - years) + all_dates[-1][4:]
         dates = [d for d in all_dates if d > cut]
-        tickers = sorted(s for s in px if s not in NOT_STOCKS and any(d in px[s] for d in dates))
+        # with membership data, keep only stocks that were in the index at some point in the window
+        inwin = lambda s: not members or any(a <= dates[-1] and (b == "" or b > dates[0]) for a, b in members.get(s, []))
+        tickers = sorted(s for s in px if s not in NOT_STOCKS and any(d in px[s] for d in dates) and inwin(s))
         vt = px.get(WORLD, {})
         cents = lambda v: None if v is None else int(round(v * 100))
         col = lambda s, k: [cents(px[s][d][k]) if d in px[s] else None for d in dates]
@@ -97,6 +123,10 @@ def main(out, years=5):
                 "index": [round(spy[d][1], 2) for d in dates], "source": "Alpaca archive (bloom111/paper-trader data/)",
                 "indexName": "SPY", "bench2": [round(vt[d][1], 2) if d in vt else None for d in dates],
                 "bench2Name": "FTSE All-World (VT)"}
+        if members:
+            scan["members"] = [members.get(s, []) for s in tickers]
+            scan["endValue"] = {s: v for s, v in WIPED.items() if s in tickers}
+            scan["source"] += ", with stocks that left the S&P 500 and daily index membership"
         with open(os.path.join(out, "sp500_archive.json"), "w") as f:
             json.dump(scan, f, separators=(",", ":"))
     print(json.dumps({"sessions": len(all_dates), "first": summary["first"], "last": summary["last"], "months": len(months)}))
