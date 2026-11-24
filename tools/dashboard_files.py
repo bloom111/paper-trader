@@ -29,6 +29,16 @@ STRAT_LONG = {
 }
 
 
+def fee_text(m):
+    parts = [f"${m['fee']:g}"] if m.get("fee") else []
+    if m.get("feePct"): parts.append(f"{m['feePct']:g}% of the order")
+    if m.get("feePerShare"): parts.append(f"${m['feePerShare']:g} per share")
+    t = " + ".join(parts) or "$0"
+    if m.get("feeMin"): t += f", at least ${m['feeMin']:g}"
+    if m.get("feeMaxPct"): t += f", at most {m['feeMaxPct']:g}% of the order"
+    return t
+
+
 def copy_or_header(src, dst, header):
     if os.path.exists(src):
         with open(src, newline="") as f:
@@ -122,7 +132,7 @@ def main(out):
         rows.append(["Strategy in every market", regime_trader.STRAT_LABEL[m["strat"]]])
     for k in used:
         rows.append([regime_trader.STRAT_LABEL[k] + " rule", STRAT_LONG[k](m[k])])
-    rows += [["Per position", f"${m['size']:g}"], ["Most new buys per day", m["maxNew"]], ["Simulated fee per order", f"${m['fee']:g}"],
+    rows += [["Per position", f"${m['size']:g}"], ["Most new buys per day", m["maxNew"]], ["Simulated fee per order", fee_text(m)],
              ["With more signals than buys, prefer", "most money traded" if m["rank"] == "value" else "most shares traded"],
              ["Only stocks above their 200-day average", "yes" if m["trend"] else "no"],
              ["Stop-loss", f"{m['stop']:g}%" if m["stop"] else "off"], ["Most days held", m["maxHold"] or "no limit"]]
