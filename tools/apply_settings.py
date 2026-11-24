@@ -94,7 +94,7 @@ def clean_numbers(v):
 
 def main(bot, saved_path):
     saved = json.load(open(saved_path))
-    path = os.path.join(ROOT, "config.json" if bot == "rsi" else os.path.join("regime", "config.json"))
+    path = os.path.join(ROOT, os.path.join("archive", "rsi-bot", "config.json") if bot == "rsi" else os.path.join("regime", "config.json"))
     cur = json.load(open(path))
     problems = check_rsi(saved) if bot == "rsi" else check_regime(saved)
     if problems:

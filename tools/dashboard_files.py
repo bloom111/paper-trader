@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-Build the dashboard's data files from both bots' results.
+Build the dashboard's data files from the market-type bot's results.
 
 Usage: python tools/dashboard_files.py OUT_DIR
-Writes 13 CSV files into OUT_DIR (header-only where a bot has no results yet):
-  RSI bot:          equity.csv trades.csv orders.csv signals.csv positions.csv config.csv
-  Market-type bot:  mt_equity.csv mt_trades.csv mt_orders.csv mt_signals.csv mt_positions.csv mt_config.csv
-  Both:             benchmarks.csv  session,spy_close,vt_close for every day either bot has a result
-                    (SPY from the bots' logs, VT = FTSE All-World stand-in from the market data archive)
+Writes 7 CSV files into OUT_DIR (header-only where the bot has no results yet):
+  mt_equity.csv mt_trades.csv mt_orders.csv mt_signals.csv mt_positions.csv mt_config.csv
+  benchmarks.csv  session,spy_close,vt_close for every archived day from BENCH_FROM on
+                  (VT = FTSE All-World stand-in), straight from the market data archive
+The RSI bot is archived in archive/rsi-bot/ and no longer has dashboard files.
 """
 import csv
 import json
@@ -17,7 +17,6 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 import market_filter  # noqa: E402
-import paper_trader  # noqa: E402
 import regime_trader  # noqa: E402
 
 STRAT_LONG = {
@@ -58,62 +57,61 @@ def write_rows(dst, header, rows):
         w.writerows(rows)
 
 
-def positions(state_path, extra=False):
+def last_closes(symbols):
+    """{symbol: (session, close)} from the newest archive months that hold each symbol."""
+    out, months = {}, sorted(f for f in os.listdir(os.path.join(ROOT, "data", "bars")) if f.endswith(".csv")) \
+        if os.path.isdir(os.path.join(ROOT, "data", "bars")) else []
+    for f in reversed(months[-3:]):
+        with open(os.path.join(ROOT, "data", "bars", f), newline="") as fh:
+            for r in csv.DictReader(fh):
+                s = r["symbol"]
+                if s in symbols and (s not in out or r["date"] > out[s][0]):
+                    out[s] = (r["date"], float(r["close"]))
+    return out
+
+
+def positions(state_path):
     st = json.load(open(state_path)) if os.path.exists(state_path) else {"positions": {}}
+    pos = st.get("positions", {})
+    closes = last_closes(set(pos))
     rows = []
-    for sym, p in sorted(st.get("positions", {}).items()):
-        row = [sym, p["entry_session"], round(p["qty"], 6), round(p["entry_price"], 4), round(p["cost"], 2),
-               "true" if p.get("exit_pending") else "false"]
-        if extra:
-            row += [p.get("k", ""), p.get("reg") or ""]
-        rows.append(row)
+    for sym, p in sorted(pos.items()):
+        day, close = closes.get(sym, ("", None))
+        value = p["qty"] * close if close is not None else None
+        rows.append([sym, p["entry_session"], round(p["qty"], 6), round(p["entry_price"], 4), round(p["cost"], 2),
+                     "true" if p.get("exit_pending") else "false", p.get("k", ""), p.get("reg") or "",
+                     day, "" if close is None else close, "" if value is None else round(value, 2),
+                     "" if value is None else round((value / p["cost"] - 1) * 100, 2)])
     return rows
 
 
+BENCH_FROM = "2026-11-17"   # first day of the market-type bot's backtest on the dashboard
+
+
 def benchmarks(out):
-    """SPY and VT closes on every session either bot has logged."""
+    """SPY and VT closes on every archived day from BENCH_FROM on."""
     days = {}
-    for path in (os.path.join(ROOT, "state", "equity.csv"), os.path.join(ROOT, "regime", "state", "equity.csv")):
-        if os.path.exists(path):
-            with open(path, newline="") as f:
-                for r in csv.DictReader(f):
-                    if r.get("session"):
-                        d = days.setdefault(r["session"], {"spy": "", "vt": ""})
-                        d["spy"] = d["spy"] or r.get("spy_close", "")
-    for m in {s[:7] for s in days}:
-        path = os.path.join(ROOT, "data", "bars", f"{m}.csv")
-        if os.path.exists(path):
-            with open(path, newline="") as f:
-                for r in csv.DictReader(f):
-                    if r["symbol"] == "VT" and r["date"] in days:
-                        days[r["date"]]["vt"] = r["close"]
+    bars = os.path.join(ROOT, "data", "bars")
+    for f in sorted(os.listdir(bars)) if os.path.isdir(bars) else []:
+        if f.endswith(".csv") and f[:7] >= BENCH_FROM[:7]:
+            with open(os.path.join(bars, f), newline="") as fh:
+                for r in csv.DictReader(fh):
+                    if r["symbol"] in ("SPY", "VT") and r["date"] >= BENCH_FROM:
+                        days.setdefault(r["date"], {"SPY": "", "VT": ""})[r["symbol"]] = r["close"]
     write_rows(os.path.join(out, "benchmarks.csv"), ["session", "spy_close", "vt_close"],
-               [[s, days[s]["spy"], days[s]["vt"]] for s in sorted(days)])
+               [[d, days[d]["SPY"], days[d]["VT"]] for d in sorted(days)])
 
 
 def main(out):
     os.makedirs(out, exist_ok=True)
-    # RSI bot
-    sd = os.path.join(ROOT, "state")
-    for name, cols in paper_trader.LOGS.items():
-        copy_or_header(os.path.join(sd, name), os.path.join(out, name), cols)
-    write_rows(os.path.join(out, "positions.csv"), ["symbol", "entry_session", "qty", "entry_price", "cost", "exit_pending"],
-               positions(os.path.join(sd, "state.json")))
-    c = json.load(open(os.path.join(ROOT, "config.json")))
-    write_rows(os.path.join(out, "config.csv"), ["setting", "value"], [
-        ["rsi_length", c["strategy"]["rsi_length"]], ["buy_below", c["strategy"]["buy_below"]], ["sell_above", c["strategy"]["sell_above"]],
-        ["position_size", c["position_size"]], ["max_new_per_day", c["max_new_per_day"]], ["fee_per_order", c["fee_per_order"]],
-        ["rank_by", c["rank_by"]], ["trend_filter_200d", str(c["trend_filter_200d"]).lower()], ["stop_loss_pct", c["stop_loss_pct"]],
-        ["max_days_held", c["max_days_held"]], ["start_capital", c["start_capital"]],
-        ["non_trading_period", market_filter.describe(c)]])
-
     # Market-type bot
     md = os.path.join(ROOT, "regime", "state")
     for name, cols in regime_trader.LOGS.items():
         copy_or_header(os.path.join(md, name), os.path.join(out, "mt_" + name), cols)
     write_rows(os.path.join(out, "mt_positions.csv"),
-               ["symbol", "entry_session", "qty", "entry_price", "cost", "exit_pending", "strategy", "market"],
-               positions(os.path.join(md, "state.json"), extra=True))
+               ["symbol", "entry_session", "qty", "entry_price", "cost", "exit_pending", "strategy", "market",
+                "close_session", "close", "value", "return_pct"],
+               positions(os.path.join(md, "state.json")))
     m = json.load(open(os.path.join(ROOT, "regime", "config.json")))
     rows = []
     if m["mode"] == "regime":

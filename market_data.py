@@ -157,7 +157,7 @@ def run(api, start=None, log=print):
         log(f"Archive already has every session up to {sessions[-1]}.")
         return {"added": 0, "last": sessions[-1]}
 
-    symbols, note = sp500_symbols(os.path.join(HERE, "state"))
+    symbols, note = sp500_symbols(os.path.join(HERE, "regime", "state"))
     if note:
         log(note)
     need = sorted(set(symbols) | set(BENCHMARKS))
@@ -198,7 +198,7 @@ def main():
         start = sys.argv[sys.argv.index("--from") + 1]
     if start:
         date.fromisoformat(start)   # refuses anything that isn't YYYY-MM-DD
-    with open(os.path.join(HERE, "config.json")) as f:
+    with open(os.path.join(HERE, "regime", "config.json")) as f:
         feed = json.load(f).get("data_feed", "sip")
     api = AlpacaAPI(key, secret, feed=feed)
     try:

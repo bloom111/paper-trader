@@ -1,5 +1,11 @@
 # RSI dip paper trader
 
+> **Archived 25 Nov 2026.** The RSI bot no longer runs. Its settings and every result it logged (17–24 Nov 2026) are in
+> `archive/rsi-bot/` (`config.json`, `state/`). Only the market-type bot below trades now. `paper_trader.py` stays in
+> place because the market-type bot and `market_data.py` use its Alpaca client. To revive the RSI bot, add the
+> "Run RSI paper trader" step (`python paper_trader.py`) back to `.github/workflows/paper-trade.yml`; it reads and
+> writes `archive/rsi-bot/`. Its Alpaca paper account still holds whatever positions it had open; nothing was sold.
+
 Trades the RSI dip strategy from the S&P 500 Dip Scanner in an Alpaca **paper** account, automatically, once every US trading day. No real money is involved.
 
 **Every weekday at 21:30 UTC (22:30 Berlin in winter, 23:30 in summer)** GitHub runs `paper_trader.py`, which:
