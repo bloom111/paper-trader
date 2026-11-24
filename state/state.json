@@ -1,39 +1,14 @@
 {
-  "cash": 124.04000014227006,
-  "fees_paid": 0.99,
-  "last_session": "2026-11-20",
-  "pending": {
-    "724851a8-7130-4cdc-b6bf-5067f3aabcb3": {
-      "qty": 2.161334947,
-      "session": "2026-11-20",
-      "side": "sell",
-      "symbol": "INTC"
-    },
-    "75562072-ed63-4517-8699-b022f6aeee03": {
-      "qty": 0.784965144,
-      "session": "2026-11-20",
-      "side": "sell",
-      "symbol": "NVDA"
-    }
-  },
+  "cash": 381.14297759705005,
+  "fees_paid": 1.6500000000000001,
+  "last_session": "2026-11-23",
+  "pending": {},
   "positions": {
-    "INTC": {
-      "cost": 125.31999998500999,
-      "entry_price": 57.83,
-      "entry_session": "2026-11-19",
-      "qty": 2.161334947
-    },
     "NKE": {
       "cost": 125.31999999359999,
       "entry_price": 35.6,
       "entry_session": "2026-11-18",
       "qty": 3.510955056
-    },
-    "NVDA": {
-      "cost": 125.31999987911998,
-      "entry_price": 159.23,
-      "entry_session": "2026-11-18",
-      "qty": 0.784965144
     }
   },
   "started": "2026-11-17"
