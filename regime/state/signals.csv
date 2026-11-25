@@ -1,0 +1,3 @@
+session,symbol,strategy,value,close,volume,action
+2026-11-24,MGM,sma,,34.32,3550411,"skipped, non-trading period"
+2026-11-24,CBRE,sma,,133.48,2164954,"skipped, non-trading period"
