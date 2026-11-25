@@ -136,6 +136,20 @@ Each position is sold by the rule of the strategy that bought it. The rules and 
 - **Results:** `regime/state/` with the same files as the RSI bot, plus the strategy and market type of each trade, and the market measures in `equity.csv`.
 - **Keys:** create a second paper account in Alpaca, generate its API keys, and add them as repository secrets `ALPACA_REGIME_KEY_ID` and `ALPACA_REGIME_SECRET_KEY`. Until they exist, the bot skips itself and the RSI bot runs as before.
 
+## Riskier market-type bot
+
+`risky_trader.py` runs the market-type bot's code a second time with its own settings, as the riskier alternative:
+it **never sits out** (no non-trading period) and makes **up to 3 new buys a day**. Everything else is the same as
+`regime/config.json` on 2026-11-25. The dashboard compares it with the market-type bot, SPY and FTSE All-World.
+
+- **Settings:** `risky/config.json`, fixed by hand (not synced from the scanner page).
+- **Results:** `risky/state/`, the same files as `regime/state/`.
+- **Account:** the archived RSI bot's paper account (secrets `ALPACA_KEY_ID` / `ALPACA_SECRET_KEY`). The bot keeps its own
+  book of cash and positions and never reads the account's positions, so the RSI bot's leftover positions don't affect it.
+- **Backtest** (Jan 2021 – Nov 2026, point-in-time S&P 500, 0.05% slippage, IBKR fees, $2,500 / $500): Sharpe 1.13,
+  22.2% a year, worst drop -19.5%; the market-type bot 1.19, 22.5%, -21.4%. A crash like March 2020 could not be tested,
+  and that is where the non-trading period helps most.
+
 ## Survivorship-free backtest data
 
 The archive above only has stocks that are in the S&P 500 today, which makes backtests look better than they were:

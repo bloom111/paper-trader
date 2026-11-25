@@ -50,6 +50,17 @@ jobs:
           DRY_RUN: ${{ inputs.dry_run && '1' || '' }}
         run: python regime_trader.py
 
+      # Riskier second market-type bot (no non-trading period, 3 buys a day).
+      # Uses the archived RSI bot's paper account; it keeps its own book in risky/state,
+      # so that account's old RSI positions are left alone.
+      - name: Run riskier market-type paper trader
+        if: ${{ always() }}
+        env:
+          ALPACA_RISKY_KEY_ID: ${{ secrets.ALPACA_KEY_ID }}
+          ALPACA_RISKY_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
+          DRY_RUN: ${{ inputs.dry_run && '1' || '' }}
+        run: python risky_trader.py
+
       # Saves each day's prices of all S&P 500 stocks and SPY in data/ for backtesting.
       - name: Archive market data
         if: ${{ always() && !inputs.dry_run }}
@@ -64,8 +75,8 @@ jobs:
         run: |
           git config user.name "paper-trader"
           git config user.email "paper-trader@users.noreply.github.com"
-          mkdir -p state regime/state data
-          git add state regime/state data
+          mkdir -p state regime/state risky/state data
+          git add state regime/state risky/state data
           git diff --cached --quiet || git commit -m "Paper trade $(date -u +%F)"
           git pull --rebase --quiet || true
           git push
