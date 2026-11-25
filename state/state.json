@@ -1,8 +1,15 @@
 {
   "cash": 381.14297759705005,
   "fees_paid": 1.6500000000000001,
-  "last_session": "2026-11-23",
-  "pending": {},
+  "last_session": "2026-11-24",
+  "pending": {
+    "79743766-0395-436c-9a06-fd3b980d3f4f": {
+      "qty": 3.510955056,
+      "session": "2026-11-24",
+      "side": "sell",
+      "symbol": "NKE"
+    }
+  },
   "positions": {
     "NKE": {
       "cost": 125.31999999359999,
