@@ -488,14 +488,14 @@ def run(api, cfg, state_dir, dry_run=False, symbols=None, log=print):
 
 
 def main():
-    with open(os.path.join(HERE, "config.json")) as f:
+    with open(os.path.join(HERE, "archive", "rsi-bot", "config.json")) as f:
         cfg = json.load(f)
     key, secret = os.environ.get("ALPACA_KEY_ID"), os.environ.get("ALPACA_SECRET_KEY")
     if not key or not secret:
         sys.exit("Set ALPACA_KEY_ID and ALPACA_SECRET_KEY (GitHub: Settings → Secrets and variables → Actions).")
     dry = os.environ.get("DRY_RUN", "").lower() in ("1", "true", "yes")
     api = AlpacaAPI(key, secret, feed=cfg.get("data_feed", "sip"))
-    res = run(api, cfg, os.path.join(HERE, "state"), dry_run=dry)
+    res = run(api, cfg, os.path.join(HERE, "archive", "rsi-bot", "state"), dry_run=dry)
     out = os.environ.get("GITHUB_STEP_SUMMARY")
     if out and res:
         with open(out, "a") as f:

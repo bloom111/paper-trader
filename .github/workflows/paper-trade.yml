@@ -34,16 +34,8 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Run RSI paper trader
-        env:
-          ALPACA_KEY_ID: ${{ secrets.ALPACA_KEY_ID }}
-          ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
-          DRY_RUN: ${{ inputs.dry_run && '1' || '' }}
-        run: python paper_trader.py
-
-      # Runs even if the RSI bot failed; skips itself until its own secrets are set.
+      # The RSI bot is archived (archive/rsi-bot/); the market-type bots trade.
       - name: Run market-type paper trader
-        if: ${{ always() }}
         env:
           ALPACA_REGIME_KEY_ID: ${{ secrets.ALPACA_REGIME_KEY_ID }}
           ALPACA_REGIME_SECRET_KEY: ${{ secrets.ALPACA_REGIME_SECRET_KEY }}
@@ -75,8 +67,8 @@ jobs:
         run: |
           git config user.name "paper-trader"
           git config user.email "paper-trader@users.noreply.github.com"
-          mkdir -p state regime/state risky/state data
-          git add state regime/state risky/state data
+          mkdir -p regime/state risky/state data
+          git add regime/state risky/state data
           git diff --cached --quiet || git commit -m "Paper trade $(date -u +%F)"
           git pull --rebase --quiet || true
           git push
