@@ -1,0 +1,64 @@
+{
+  "mode": "regime",
+  "strat": "rsi",
+  "map": {
+    "downCalm": "breakout",
+    "downWild": "rsi",
+    "upCalm": "macd",
+    "upWild": "sma"
+  },
+  "mult": {
+    "downCalm": 1,
+    "downWild": 1,
+    "upCalm": 1,
+    "upWild": 1
+  },
+  "rsi": {
+    "hi": 75,
+    "lo": 10,
+    "n": 5
+  },
+  "sma": {
+    "f": 50,
+    "s": 200
+  },
+  "macd": {
+    "f": 19,
+    "g": 9,
+    "s": 39
+  },
+  "boll": {
+    "k": 2,
+    "n": 20
+  },
+  "breakout": {
+    "m": 50,
+    "n": 100
+  },
+  "trendTh": 0,
+  "volTh": 20,
+  "volSize": true,
+  "volTarget": 15,
+  "multMin": 0.5,
+  "multMax": 2,
+  "trend": false,
+  "stop": 0,
+  "maxHold": 0,
+  "size": 500,
+  "maxNew": 3,
+  "capital": 2500,
+  "fee": 0,
+  "rank": "shares",
+  "universe": "sp500",
+  "market_symbol": "SPY",
+  "data_feed": "sip",
+  "pause": {
+    "on": false,
+    "drop5_pct": 4,
+    "vol_pct": 25
+  },
+  "feePct": 0,
+  "feePerShare": 0.0035,
+  "feeMin": 0.35,
+  "feeMaxPct": 1
+}

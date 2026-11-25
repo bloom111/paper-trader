@@ -3,10 +3,11 @@
 Build the dashboard's data files from both bots' results.
 
 Usage: python tools/dashboard_files.py OUT_DIR
-Writes 13 CSV files into OUT_DIR (header-only where a bot has no results yet):
+Writes 19 CSV files into OUT_DIR (header-only where a bot has no results yet):
   RSI bot:          equity.csv trades.csv orders.csv signals.csv positions.csv config.csv
   Market-type bot:  mt_equity.csv mt_trades.csv mt_orders.csv mt_signals.csv mt_positions.csv mt_config.csv
-  Both:             benchmarks.csv  session,spy_close,vt_close for every day either bot has a result
+  Riskier bot:      rk_equity.csv rk_trades.csv rk_orders.csv rk_signals.csv rk_positions.csv rk_config.csv
+  All:              benchmarks.csv  session,spy_close,vt_close for every day either bot has a result
                     (SPY from the bots' logs, VT = FTSE All-World stand-in from the market data archive)
 """
 import csv
@@ -71,9 +72,9 @@ def positions(state_path, extra=False):
 
 
 def benchmarks(out):
-    """SPY and VT closes on every session either bot has logged."""
+    """SPY and VT closes on every session any bot has logged."""
     days = {}
-    for path in (os.path.join(ROOT, "state", "equity.csv"), os.path.join(ROOT, "regime", "state", "equity.csv")):
+    for path in (os.path.join(ROOT, d, "equity.csv") for d in ("state", os.path.join("regime", "state"), os.path.join("risky", "state"))):
         if os.path.exists(path):
             with open(path, newline="") as f:
                 for r in csv.DictReader(f):
@@ -91,30 +92,15 @@ def benchmarks(out):
                [[s, days[s]["spy"], days[s]["vt"]] for s in sorted(days)])
 
 
-def main(out):
-    os.makedirs(out, exist_ok=True)
-    # RSI bot
-    sd = os.path.join(ROOT, "state")
-    for name, cols in paper_trader.LOGS.items():
-        copy_or_header(os.path.join(sd, name), os.path.join(out, name), cols)
-    write_rows(os.path.join(out, "positions.csv"), ["symbol", "entry_session", "qty", "entry_price", "cost", "exit_pending"],
-               positions(os.path.join(sd, "state.json")))
-    c = json.load(open(os.path.join(ROOT, "config.json")))
-    write_rows(os.path.join(out, "config.csv"), ["setting", "value"], [
-        ["rsi_length", c["strategy"]["rsi_length"]], ["buy_below", c["strategy"]["buy_below"]], ["sell_above", c["strategy"]["sell_above"]],
-        ["position_size", c["position_size"]], ["max_new_per_day", c["max_new_per_day"]], ["fee_per_order", c["fee_per_order"]],
-        ["rank_by", c["rank_by"]], ["trend_filter_200d", str(c["trend_filter_200d"]).lower()], ["stop_loss_pct", c["stop_loss_pct"]],
-        ["max_days_held", c["max_days_held"]], ["start_capital", c["start_capital"]],
-        ["non_trading_period", market_filter.describe(c)]])
-
-    # Market-type bot
-    md = os.path.join(ROOT, "regime", "state")
+def market_type_files(out, bot, prefix):
+    """Logs, positions and settings of a market-type bot (folder `bot`), as PREFIX*.csv."""
+    md = os.path.join(ROOT, bot, "state")
     for name, cols in regime_trader.LOGS.items():
-        copy_or_header(os.path.join(md, name), os.path.join(out, "mt_" + name), cols)
-    write_rows(os.path.join(out, "mt_positions.csv"),
+        copy_or_header(os.path.join(md, name), os.path.join(out, prefix + name), cols)
+    write_rows(os.path.join(out, prefix + "positions.csv"),
                ["symbol", "entry_session", "qty", "entry_price", "cost", "exit_pending", "strategy", "market"],
                positions(os.path.join(md, "state.json"), extra=True))
-    m = json.load(open(os.path.join(ROOT, "regime", "config.json")))
+    m = json.load(open(os.path.join(ROOT, bot, "config.json")))
     rows = []
     if m["mode"] == "regime":
         used = []
@@ -140,7 +126,27 @@ def main(out):
         rows.append(["Size by volatility", f"normal at {m['volTarget']:g}%, between ×{m['multMin']:g} and ×{m['multMax']:g}"])
     rows.append(["Non-trading period", market_filter.describe(m)])
     rows.append(["Start budget", f"${m['capital']:g}"])
-    write_rows(os.path.join(out, "mt_config.csv"), ["setting", "value"], rows)
+    write_rows(os.path.join(out, prefix + "config.csv"), ["setting", "value"], rows)
+
+
+def main(out):
+    os.makedirs(out, exist_ok=True)
+    # RSI bot
+    sd = os.path.join(ROOT, "state")
+    for name, cols in paper_trader.LOGS.items():
+        copy_or_header(os.path.join(sd, name), os.path.join(out, name), cols)
+    write_rows(os.path.join(out, "positions.csv"), ["symbol", "entry_session", "qty", "entry_price", "cost", "exit_pending"],
+               positions(os.path.join(sd, "state.json")))
+    c = json.load(open(os.path.join(ROOT, "config.json")))
+    write_rows(os.path.join(out, "config.csv"), ["setting", "value"], [
+        ["rsi_length", c["strategy"]["rsi_length"]], ["buy_below", c["strategy"]["buy_below"]], ["sell_above", c["strategy"]["sell_above"]],
+        ["position_size", c["position_size"]], ["max_new_per_day", c["max_new_per_day"]], ["fee_per_order", c["fee_per_order"]],
+        ["rank_by", c["rank_by"]], ["trend_filter_200d", str(c["trend_filter_200d"]).lower()], ["stop_loss_pct", c["stop_loss_pct"]],
+        ["max_days_held", c["max_days_held"]], ["start_capital", c["start_capital"]],
+        ["non_trading_period", market_filter.describe(c)]])
+
+    market_type_files(out, "regime", "mt_")
+    market_type_files(out, "risky", "rk_")
     benchmarks(out)
 
 
