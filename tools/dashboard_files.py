@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """
-Build the dashboard's data files from the market-type bot's results.
+Build the dashboard's data files from the market-type bots' results.
 
 Usage: python tools/dashboard_files.py OUT_DIR
-Writes 7 CSV files into OUT_DIR (header-only where the bot has no results yet):
-  mt_equity.csv mt_trades.csv mt_orders.csv mt_signals.csv mt_positions.csv mt_config.csv
+Writes 13 CSV files into OUT_DIR (header-only where a bot has no results yet):
+  Market-type bot:  mt_equity.csv mt_trades.csv mt_orders.csv mt_signals.csv mt_positions.csv mt_config.csv
+  Riskier bot:      rk_equity.csv rk_trades.csv rk_orders.csv rk_signals.csv rk_positions.csv rk_config.csv
   benchmarks.csv  session,spy_close,vt_close for every archived day from BENCH_FROM on
                   (VT = FTSE All-World stand-in), straight from the market data archive
 The RSI bot is archived in archive/rsi-bot/ and no longer has dashboard files.
@@ -102,17 +103,16 @@ def benchmarks(out):
                [[d, days[d]["SPY"], days[d]["VT"]] for d in sorted(days)])
 
 
-def main(out):
-    os.makedirs(out, exist_ok=True)
-    # Market-type bot
-    md = os.path.join(ROOT, "regime", "state")
+def market_type_files(out, bot, prefix):
+    """Logs, positions and settings of a market-type bot (folder `bot`), as PREFIX*.csv."""
+    md = os.path.join(ROOT, bot, "state")
     for name, cols in regime_trader.LOGS.items():
-        copy_or_header(os.path.join(md, name), os.path.join(out, "mt_" + name), cols)
-    write_rows(os.path.join(out, "mt_positions.csv"),
+        copy_or_header(os.path.join(md, name), os.path.join(out, prefix + name), cols)
+    write_rows(os.path.join(out, prefix + "positions.csv"),
                ["symbol", "entry_session", "qty", "entry_price", "cost", "exit_pending", "strategy", "market",
                 "close_session", "close", "value", "return_pct"],
                positions(os.path.join(md, "state.json")))
-    m = json.load(open(os.path.join(ROOT, "regime", "config.json")))
+    m = json.load(open(os.path.join(ROOT, bot, "config.json")))
     rows = []
     if m["mode"] == "regime":
         used = []
@@ -138,7 +138,13 @@ def main(out):
         rows.append(["Size by volatility", f"normal at {m['volTarget']:g}%, between ×{m['multMin']:g} and ×{m['multMax']:g}"])
     rows.append(["Non-trading period", market_filter.describe(m)])
     rows.append(["Start budget", f"${m['capital']:g}"])
-    write_rows(os.path.join(out, "mt_config.csv"), ["setting", "value"], rows)
+    write_rows(os.path.join(out, prefix + "config.csv"), ["setting", "value"], rows)
+
+
+def main(out):
+    os.makedirs(out, exist_ok=True)
+    market_type_files(out, "regime", "mt_")
+    market_type_files(out, "risky", "rk_")
     benchmarks(out)
 
 

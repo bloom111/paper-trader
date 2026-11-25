@@ -34,13 +34,24 @@ jobs:
         with:
           python-version: "3.12"
 
-      # The RSI bot is archived (archive/rsi-bot/); only the market-type bot trades.
+      # The RSI bot is archived (archive/rsi-bot/); the market-type bots trade.
       - name: Run market-type paper trader
         env:
           ALPACA_REGIME_KEY_ID: ${{ secrets.ALPACA_REGIME_KEY_ID }}
           ALPACA_REGIME_SECRET_KEY: ${{ secrets.ALPACA_REGIME_SECRET_KEY }}
           DRY_RUN: ${{ inputs.dry_run && '1' || '' }}
         run: python regime_trader.py
+
+      # Riskier second market-type bot (no non-trading period, 3 buys a day).
+      # Uses the archived RSI bot's paper account; it keeps its own book in risky/state,
+      # so that account's old RSI positions are left alone.
+      - name: Run riskier market-type paper trader
+        if: ${{ always() }}
+        env:
+          ALPACA_RISKY_KEY_ID: ${{ secrets.ALPACA_KEY_ID }}
+          ALPACA_RISKY_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
+          DRY_RUN: ${{ inputs.dry_run && '1' || '' }}
+        run: python risky_trader.py
 
       # Saves each day's prices of all S&P 500 stocks and SPY in data/ for backtesting.
       - name: Archive market data
@@ -56,8 +67,8 @@ jobs:
         run: |
           git config user.name "paper-trader"
           git config user.email "paper-trader@users.noreply.github.com"
-          mkdir -p regime/state data
-          git add regime/state data
+          mkdir -p regime/state risky/state data
+          git add regime/state risky/state data
           git diff --cached --quiet || git commit -m "Paper trade $(date -u +%F)"
           git pull --rebase --quiet || true
           git push

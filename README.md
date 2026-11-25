@@ -1,7 +1,7 @@
 # RSI dip paper trader
 
 > **Archived 25 Nov 2026.** The RSI bot no longer runs. Its settings and every result it logged (17–24 Nov 2026) are in
-> `archive/rsi-bot/` (`config.json`, `state/`). Only the market-type bot below trades now. `paper_trader.py` stays in
+> `archive/rsi-bot/` (`config.json`, `state/`). Only the market-type bots below trade now (the riskier one uses the RSI bot's paper account with its own book). `paper_trader.py` stays in
 > place because the market-type bot and `market_data.py` use its Alpaca client. To revive the RSI bot, add the
 > "Run RSI paper trader" step (`python paper_trader.py`) back to `.github/workflows/paper-trade.yml`; it reads and
 > writes `archive/rsi-bot/`. Its Alpaca paper account still holds whatever positions it had open; nothing was sold.
@@ -141,6 +141,20 @@ Each position is sold by the rule of the strategy that bought it. The rules and 
   1,000 shares $3.50). Alpaca: all 0. A €1 broker: `fee` 1. Without the four keys the bot charges the flat `fee`.
 - **Results:** `regime/state/` with the same files as the RSI bot, plus the strategy and market type of each trade, and the market measures in `equity.csv`.
 - **Keys:** create a second paper account in Alpaca, generate its API keys, and add them as repository secrets `ALPACA_REGIME_KEY_ID` and `ALPACA_REGIME_SECRET_KEY`. Until they exist, the bot skips itself and the RSI bot runs as before.
+
+## Riskier market-type bot
+
+`risky_trader.py` runs the market-type bot's code a second time with its own settings, as the riskier alternative:
+it **never sits out** (no non-trading period) and makes **up to 3 new buys a day**. Everything else is the same as
+`regime/config.json` on 2026-11-25. The dashboard compares it with the market-type bot, SPY and FTSE All-World.
+
+- **Settings:** `risky/config.json`, fixed by hand (not synced from the scanner page).
+- **Results:** `risky/state/`, the same files as `regime/state/`.
+- **Account:** the archived RSI bot's paper account (secrets `ALPACA_KEY_ID` / `ALPACA_SECRET_KEY`). The bot keeps its own
+  book of cash and positions and never reads the account's positions, so the RSI bot's leftover positions don't affect it.
+- **Backtest** (Jan 2021 – Nov 2026, point-in-time S&P 500, 0.05% slippage, IBKR fees, $2,500 / $500): Sharpe 1.13,
+  22.2% a year, worst drop -19.5%; the market-type bot 1.19, 22.5%, -21.4%. A crash like March 2020 could not be tested,
+  and that is where the non-trading period helps most.
 
 ## Survivorship-free backtest data
 
