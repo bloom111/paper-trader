@@ -2,42 +2,42 @@
   "mode": "regime",
   "strat": "rsi",
   "map": {
+    "downCalm": "breakout",
+    "downWild": "rsi",
     "upCalm": "macd",
-    "upWild": "breakout",
-    "downCalm": "rsi",
-    "downWild": "sma"
+    "upWild": "sma"
   },
   "mult": {
-    "upCalm": 1,
-    "upWild": 1,
     "downCalm": 1,
-    "downWild": 1
+    "downWild": 1,
+    "upCalm": 1,
+    "upWild": 1
   },
   "rsi": {
-    "n": 5,
-    "lo": 25,
-    "hi": 75
+    "hi": 75,
+    "lo": 10,
+    "n": 5
   },
   "sma": {
-    "f": 20,
-    "s": 50
+    "f": 50,
+    "s": 200
   },
   "macd": {
     "f": 19,
-    "s": 39,
-    "g": 9
+    "g": 9,
+    "s": 39
   },
   "boll": {
-    "n": 20,
-    "k": 2
+    "k": 2,
+    "n": 20
   },
   "breakout": {
-    "n": 50,
-    "m": 20
+    "m": 50,
+    "n": 100
   },
   "trendTh": 0,
   "volTh": 20,
-  "volSize": false,
+  "volSize": true,
   "volTarget": 15,
   "multMin": 0.5,
   "multMax": 2,
