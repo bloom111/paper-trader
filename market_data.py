@@ -12,6 +12,14 @@ doesn't have yet, so a missed evening is filled in by the next run.
                             to make them comparable with prices from ex_date on. Found by comparing
                             Alpaca's raw and split-adjusted prices. Dividends are not adjusted.
   data/sp500_members.csv    symbol,first_seen,last_seen   (S&P 500 list as seen by the bots)
+  data/dividends.csv        symbol,ex_date,payable_date,rate,special
+                            Cash dividends per share (gross) of every S&P 500 stock, SPY and VT, from
+                            Alpaca's corporate actions API. The first run without this file fetches
+                            them back to the archive's first month, for every stock that was in the
+                            S&P 500 since then (data/sp500_history.csv).
+  data/benchmarks.csv       session,spy_close,spy_tr,vt_close,vt_tr
+                            SPY and VT closes, and total-return values with every dividend reinvested
+                            at the ex-date close (accumulating), starting at the close on the first day.
 
 Usage:
   python market_data.py                      add missing recent sessions
@@ -32,6 +40,7 @@ from paper_trader import AlpacaAPI, APIError, parse_ts, sp500_symbols
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DATA = os.path.join(HERE, "data")
+DIV_COLS = ["symbol", "ex_date", "payable_date", "rate", "special"]
 BAR_COLS = ["date", "symbol", "open", "high", "low", "close", "volume", "vwap", "trades"]
 MARKET = "SPY"
 # Benchmarks archived next to the stocks. VT (Vanguard Total World Stock ETF) stands in for the
@@ -142,6 +151,81 @@ def save_members(symbols, session):
     write_csv(path, ["symbol", "first_seen", "last_seen"], sorted(rows.values(), key=lambda r: r["symbol"]))
 
 
+def save_dividends(found):
+    """Merge dividends into data/dividends.csv. Returns how many were new."""
+    path = os.path.join(DATA, "dividends.csv")
+    keep = {(r["symbol"], r["ex_date"], str(float(r["rate"]))): r for r in read_csv(path)}
+    n = 0
+    for d in found:
+        k = (d["symbol"], d["ex_date"], str(float(d["rate"])))
+        if k not in keep:
+            n += 1
+        keep[k] = {"symbol": d["symbol"], "ex_date": d["ex_date"], "payable_date": d["payable_date"],
+                   "rate": d["rate"], "special": "true" if d["special"] else "false"}
+    write_csv(path, DIV_COLS, sorted(keep.values(), key=lambda r: (r["ex_date"], r["symbol"])))
+    return n
+
+
+def update_dividends(api, symbols, last_session, log=print):
+    """Recent dividends; all of them back to the archive's start when data/dividends.csv doesn't exist yet."""
+    path = os.path.join(DATA, "dividends.csv")
+    months = sorted(os.path.basename(f)[:7] for f in glob.glob(os.path.join(DATA, "bars", "*.csv")))
+    if os.path.exists(path) or not months:
+        start, syms = (date.fromisoformat(last_session) - timedelta(days=45)).isoformat(), symbols
+    else:
+        start = months[0] + "-01"
+        past = {r["symbol"] for r in read_csv(os.path.join(DATA, "sp500_history.csv")) if (r.get("end") or "9999") >= start}
+        syms = sorted(set(symbols) | past)
+    end = (date.fromisoformat(last_session) + timedelta(days=60)).isoformat()
+    try:
+        found = api.cash_dividends(sorted(set(syms) | set(BENCHMARKS)), start, end)
+    except APIError as e:
+        log(f"Dividends could not be fetched ({e}); trying again on the next run.")
+        return None
+    n = save_dividends(found)
+    log(f"Dividends: {len(found)} found from {start}, {n} new.")
+    return n
+
+
+def save_benchmarks():
+    """data/benchmarks.csv: SPY and VT closes with total-return values (dividends reinvested at the ex-date close)."""
+    closes = {b: {} for b in BENCHMARKS}
+    for f in sorted(glob.glob(os.path.join(DATA, "bars", "*.csv"))):
+        with open(f, newline="") as fh:
+            for line in fh:
+                parts = line.split(",", 6)
+                if len(parts) > 5 and parts[1] in closes:
+                    closes[parts[1]][parts[0]] = float(parts[5])
+    splits = {}
+    for r in read_csv(os.path.join(DATA, "splits.csv")):
+        if r["symbol"] in closes:
+            splits.setdefault(r["symbol"], []).append((r["ex_date"], float(r["factor"])))
+    divs = {}
+    for r in read_csv(os.path.join(DATA, "dividends.csv")):
+        if r["symbol"] in closes:
+            divs.setdefault(r["symbol"], {}).setdefault(r["ex_date"], 0.0)
+            divs[r["symbol"]][r["ex_date"]] += float(r["rate"])
+    out = {}
+    for b, days in closes.items():
+        shares = None
+        for d in sorted(days):
+            m = 1.0
+            for ex, fac in splits.get(b, []):
+                if d < ex:
+                    m *= fac
+            c = days[d]
+            if shares is None:
+                shares = 1.0 / m   # one share before any later split
+            div = divs.get(b, {}).get(d)
+            if div:   # rate is per share as traded that day
+                shares *= 1 + div / c
+            row = out.setdefault(d, {"session": d})
+            row[b.lower() + "_close"] = c
+            row[b.lower() + "_tr"] = round(shares * c * m, 6)
+    cols = ["session"] + [f"{b.lower()}_{k}" for b in BENCHMARKS for k in ("close", "tr")]
+    write_csv(os.path.join(DATA, "benchmarks.csv"), cols, [out[d] for d in sorted(out)])
+
+
 # ---------------------------------------------------------------- main
 def run(api, start=None, log=print):
     now = parse_ts(api.clock()["timestamp"])
@@ -153,13 +237,14 @@ def run(api, start=None, log=print):
         log("No finished session in range.")
         return None
     missing = set(sessions) if start else set(sessions) - archived_sessions()
-    if not missing:
-        log(f"Archive already has every session up to {sessions[-1]}.")
-        return {"added": 0, "last": sessions[-1]}
-
     symbols, note = sp500_symbols(os.path.join(HERE, "regime", "state"))
     if note:
         log(note)
+    divs = update_dividends(api, symbols, sessions[-1], log)
+    if not missing:
+        save_benchmarks()
+        log(f"Archive already has every session up to {sessions[-1]}.")
+        return {"added": 0, "last": sessions[-1], "summary": f"Archive already up to date; {divs or 0} new dividend(s)."}
     need = sorted(set(symbols) | set(BENCHMARKS))
     # one extra session before the first missing one, so a split on that day is still detected
     lo = min(missing)
@@ -181,8 +266,10 @@ def run(api, start=None, log=print):
     splits = find_splits(raw, adj)
     save_splits(splits)
     save_members(symbols, complete[-1])
+    save_benchmarks()
     msg = (f"Market data: added {len(complete)} session(s) ({complete[0]} to {complete[-1]}), {rows} price rows"
-           + (f", {len(splits)} split(s): " + ", ".join(f"{s} {d} ×{f:g}" for s, d, f in splits) if splits else "") + ".")
+           + (f", {len(splits)} split(s): " + ", ".join(f"{s} {d} ×{f:g}" for s, d, f in splits) if splits else "")
+           + (f", {divs} new dividend(s)" if divs else "") + ".")
     if api.feed != "sip":
         msg += " Volumes are IEX-only because SIP data is not available on this plan."
     log(msg)

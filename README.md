@@ -156,6 +156,19 @@ it **never sits out** (no non-trading period) and makes **up to 3 new buys a day
   22.2% a year, worst drop -19.5%; the market-type bot 1.19, 22.5%, -21.4%. A crash like March 2020 could not be tested,
   and that is where the non-trading period helps most.
 
+## Dividends
+
+Both market-type bots and the benchmarks count cash dividends, gross (no withholding tax):
+
+- **Bots:** each evening the bot asks Alpaca's corporate actions API for cash dividends of the stocks it held
+  at the close before each ex-date, and adds them to its virtual cash (Alpaca's paper account pays none).
+  They are logged in `dividends.csv`, totalled in `equity.csv` (`dividends_total`), and counted in each closed
+  trade's profit (`dividends` in `trades.csv`). The buy and sell rules don't change.
+- **Benchmarks:** `market_data.py` saves every dividend of the S&P 500 stocks, SPY and VT in `data/dividends.csv`
+  and writes `data/benchmarks.csv`, where `spy_tr` and `vt_tr` reinvest each dividend at the ex-date close
+  (like an accumulating fund). The first run without `data/dividends.csv` fetches them back to the archive's start.
+- **Backtest:** the replay adds the same dividends when `data/dividends.csv` exists.
+
 ## Survivorship-free backtest data
 
 The archive above only has stocks that are in the S&P 500 today, which makes backtests look better than they were:

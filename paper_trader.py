@@ -125,6 +125,35 @@ class AlpacaAPI:
         return out
 
 
+    def cash_dividends(self, symbols, start, end):
+        """[{symbol, ex_date, payable_date, rate, special}] of cash dividends from Alpaca's corporate actions API.
+        Asks in chunks of 100 symbols and at most a year at a time; the caller filters by ex_date."""
+        out, seen = [], set()
+        a = datetime.fromisoformat(start).date()
+        last = datetime.fromisoformat(end).date()
+        while a <= last:
+            b = min(last, a + timedelta(days=365))
+            for i in range(0, len(symbols), 100):
+                token = None
+                while True:
+                    p = {"symbols": ",".join(symbols[i:i + 100]), "types": "cash_dividend",
+                         "start": a.isoformat(), "end": b.isoformat(), "limit": 1000}
+                    if token:
+                        p["page_token"] = token
+                    r = self._req("GET", self.data + "/v1/corporate-actions", p) or {}
+                    for d in (r.get("corporate_actions") or {}).get("cash_dividends") or []:
+                        key = d.get("id") or (d.get("symbol"), d.get("ex_date"), d.get("rate"))
+                        if key in seen or not d.get("ex_date") or d.get("rate") in (None, ""):
+                            continue
+                        seen.add(key)
+                        out.append({"symbol": d["symbol"], "ex_date": d["ex_date"], "payable_date": d.get("payable_date") or "",
+                                    "rate": float(d["rate"]), "special": bool(d.get("special"))})
+                    token = r.get("next_page_token")
+                    if not token:
+                        break
+            a = b + timedelta(days=1)
+        return out
+
 # ---------------------------------------------------------------- indicators
 def rsi(closes, n):
     """Wilder RSI, same formula as the backtest pages. Returns a list (None during warm-up)."""

@@ -3,10 +3,10 @@
 Build the dashboard's data files from the market-type bots' results.
 
 Usage: python tools/dashboard_files.py OUT_DIR
-Writes 13 CSV files into OUT_DIR (header-only where a bot has no results yet):
-  Market-type bot:  mt_equity.csv mt_trades.csv mt_orders.csv mt_signals.csv mt_positions.csv mt_config.csv
-  Riskier bot:      rk_equity.csv rk_trades.csv rk_orders.csv rk_signals.csv rk_positions.csv rk_config.csv
-  benchmarks.csv  session,spy_close,vt_close for every archived day from BENCH_FROM on
+Writes 15 CSV files into OUT_DIR (header-only where a bot has no results yet):
+  Market-type bot:  mt_equity.csv mt_trades.csv mt_orders.csv mt_signals.csv mt_dividends.csv mt_positions.csv mt_config.csv
+  Riskier bot:      rk_equity.csv rk_trades.csv rk_orders.csv rk_signals.csv rk_dividends.csv rk_positions.csv rk_config.csv
+  benchmarks.csv  session,spy_close,vt_close,spy_tr,vt_tr for every archived day from BENCH_FROM on (tr = dividends reinvested)
                   (VT = FTSE All-World stand-in), straight from the market data archive
 The RSI bot is archived in archive/rsi-bot/ and no longer has dashboard files.
 """
@@ -90,7 +90,8 @@ BENCH_FROM = "2026-11-17"   # first day of the market-type bot's backtest on the
 
 
 def benchmarks(out):
-    """SPY and VT closes on every archived day from BENCH_FROM on."""
+    """SPY and VT closes on every archived day from BENCH_FROM on, with total-return values
+    (dividends reinvested at the ex-date close) from data/benchmarks.csv where it exists."""
     days = {}
     bars = os.path.join(ROOT, "data", "bars")
     for f in sorted(os.listdir(bars)) if os.path.isdir(bars) else []:
@@ -99,8 +100,15 @@ def benchmarks(out):
                 for r in csv.DictReader(fh):
                     if r["symbol"] in ("SPY", "VT") and r["date"] >= BENCH_FROM:
                         days.setdefault(r["date"], {"SPY": "", "VT": ""})[r["symbol"]] = r["close"]
-    write_rows(os.path.join(out, "benchmarks.csv"), ["session", "spy_close", "vt_close"],
-               [[d, days[d]["SPY"], days[d]["VT"]] for d in sorted(days)])
+    tr = {}
+    path = os.path.join(ROOT, "data", "benchmarks.csv")
+    if os.path.exists(path):
+        with open(path, newline="") as fh:
+            tr = {r["session"]: r for r in csv.DictReader(fh)}
+    # without dividend data the total-return columns fall back to the closes
+    write_rows(os.path.join(out, "benchmarks.csv"), ["session", "spy_close", "vt_close", "spy_tr", "vt_tr"],
+               [[d, days[d]["SPY"], days[d]["VT"], tr.get(d, {}).get("spy_tr") or days[d]["SPY"],
+                 tr.get(d, {}).get("vt_tr") or days[d]["VT"]] for d in sorted(days)])
 
 
 def market_type_files(out, bot, prefix):

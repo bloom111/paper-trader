@@ -16,6 +16,7 @@ Environment:
   ALPACA_REGIME_KEY_ID, ALPACA_REGIME_SECRET_KEY   keys of the second paper account
   DRY_RUN=1                                        show what would happen; place nothing, save nothing
 """
+import csv
 import json
 import math
 import os
@@ -37,14 +38,27 @@ STRAT_LABEL = {"rsi": "RSI dip", "sma": "Moving-average crossover", "macd": "MAC
 
 LOGS = {
     "orders.csv": paper_trader.LOGS["orders.csv"],
-    "trades.csv": paper_trader.LOGS["trades.csv"] + ["strategy", "market"],
+    "trades.csv": paper_trader.LOGS["trades.csv"] + ["strategy", "market", "dividends"],
     "signals.csv": ["session", "symbol", "strategy", "value", "close", "volume", "action"],
-    "equity.csv": paper_trader.LOGS["equity.csv"] + ["market", "trend", "volatility", "strategy"],
+    "equity.csv": paper_trader.LOGS["equity.csv"] + ["market", "trend", "volatility", "strategy", "dividends_total"],
+    "dividends.csv": ["session", "symbol", "ex_date", "payable_date", "rate", "qty", "amount"],
 }
 
 
 def log_rows(state_dir, name, rows):
-    """append_log with this bot's column sets."""
+    """append_log with this bot's column sets. A log written before a column was added gets the
+    new header first (older rows leave the new columns empty)."""
+    path = os.path.join(state_dir, name)
+    if rows and os.path.exists(path):
+        with open(path, newline="") as f:
+            header = next(csv.reader(f), None)
+        if header and header != LOGS[name]:
+            with open(path, newline="") as f:
+                old = list(csv.DictReader(f))
+            with open(path, "w", newline="") as f:
+                w = csv.DictWriter(f, fieldnames=LOGS[name], extrasaction="ignore")
+                w.writeheader()
+                w.writerows(old)
     saved = paper_trader.LOGS.get(name)
     paper_trader.LOGS[name] = LOGS[name]
     try:
@@ -186,7 +200,7 @@ def run(api, cfg, state_dir, dry_run=False, symbols=None, log=print):
         return sidx[b] - sidx[a] if a in sidx and b in sidx else None
 
     # ---- 1. book orders from the previous run
-    order_rows, trade_rows = [], []
+    order_rows, trade_rows, sold_today = [], [], []
     for oid, p in list(st["pending"].items()):
         o = api.get_order(oid)
         status = o.get("status")
@@ -212,11 +226,15 @@ def run(api, cfg, state_dir, dry_run=False, symbols=None, log=print):
             proceeds = q * px - fee
             st["cash"] += proceeds
             st["fees_paid"] += fee
+            sold_today.append({"symbol": sym, "qty": q, "entry_session": pos["entry_session"]})
+            div_part = pos.get("div", 0.0) * share
+            pos["div"] = pos.get("div", 0.0) - div_part
             trade_rows.append({"symbol": sym, "entry_session": pos["entry_session"], "exit_session": session,
                                "days_held": days_between(pos["entry_session"], session), "entry_price": round(pos["entry_price"], 4),
                                "exit_price": round(px, 4), "qty": round(q, 6), "cost": round(cost_part, 2),
-                               "proceeds": round(proceeds, 2), "return_pct": round((proceeds / cost_part - 1) * 100, 2),
-                               "pnl": round(proceeds - cost_part, 2), "strategy": pos.get("k", ""), "market": pos.get("reg") or ""})
+                               "proceeds": round(proceeds, 2), "return_pct": round((proceeds + div_part) / cost_part * 100 - 100, 2),
+                               "pnl": round(proceeds + div_part - cost_part, 2), "strategy": pos.get("k", ""), "market": pos.get("reg") or "",
+                               "dividends": round(div_part, 2)})
             pos["qty"] -= q
             pos["cost"] -= cost_part
             if pos["qty"] <= 1e-6:
@@ -232,6 +250,44 @@ def run(api, cfg, state_dir, dry_run=False, symbols=None, log=print):
                            "notional": p.get("notional", ""), "qty": p.get("qty", ""), "status": o.get("status"),
                            "filled_qty": q, "filled_avg_price": px, "filled_at": o.get("filled_at") or "", "note": "booked " + session})
         del st["pending"][oid]
+
+    # ---- 1b. cash dividends (gross, no withholding tax) on shares held at the close before each ex-date
+    div_rows = []
+    since = st.get("div_through") or st["last_session"] or session
+    held = {}
+    for sym, pos in st["positions"].items():
+        if pos["entry_session"] < session:
+            held.setdefault(sym, []).append((pos["qty"], pos["entry_session"], pos))
+    for t in sold_today:   # sold at today's open: still entitled to dividends that went ex today or earlier
+        held.setdefault(t["symbol"], []).append((t["qty"], t["entry_session"], None))
+    if held:
+        try:
+            lo = (datetime.fromisoformat(since) - timedelta(days=30)).date().isoformat()
+            hi = (datetime.fromisoformat(session) + timedelta(days=45)).date().isoformat()
+            for d in api.cash_dividends(sorted(held), lo, hi):
+                if not since < d["ex_date"] <= session:
+                    continue
+                for qty, entered, pos in held.get(d["symbol"], []):
+                    if entered >= d["ex_date"]:
+                        continue
+                    amount = qty * d["rate"]
+                    st["cash"] += amount
+                    st["dividends"] = st.get("dividends", 0.0) + amount
+                    if pos is not None:
+                        pos["div"] = pos.get("div", 0.0) + amount
+                    else:   # already sold today: add it to that trade
+                        for t in trade_rows:
+                            if t["symbol"] == d["symbol"]:
+                                t["dividends"] = round(t["dividends"] + amount, 2)
+                                t["pnl"] = round(t["pnl"] + amount, 2)
+                                t["return_pct"] = round((t["proceeds"] + t["dividends"]) / t["cost"] * 100 - 100, 2)
+                    div_rows.append({"session": session, "symbol": d["symbol"], "ex_date": d["ex_date"], "payable_date": d["payable_date"],
+                                     "rate": d["rate"], "qty": round(qty, 6), "amount": round(amount, 2)})
+            st["div_through"] = session
+        except APIError as e:
+            notes.append(f"Dividends could not be checked ({e}); they will be booked on the next run.")
+    else:
+        st["div_through"] = session
 
     # ---- 2. prices and the market type
     if symbols is None:
@@ -362,7 +418,8 @@ def run(api, cfg, state_dir, dry_run=False, symbols=None, log=print):
     eq_row = {"session": session, "cash": round(st["cash"], 2), "positions_value": round(pos_value, 2), "equity": round(equity, 2),
               "open_positions": len(st["positions"]), "spy_close": series[mkt][-1]["c"], "fees_paid_total": round(st["fees_paid"], 2),
               "market": reg or "", "trend": round(trend, 5) if trend is not None else "",
-              "volatility": round(vol, 5) if vol is not None else "", "strategy": strat_now}
+              "volatility": round(vol, 5) if vol is not None else "", "strategy": strat_now,
+              "dividends_total": round(st.get("dividends", 0.0), 2)}
     st["last_session"] = session
 
     # ---- 7. summary
@@ -374,6 +431,8 @@ def run(api, cfg, state_dir, dry_run=False, symbols=None, log=print):
                    f"cash {money(st['cash'])}, {len(st['positions'])} open position(s).")
     if paused:
         summary.append(f"\n**Non-trading period: no new buys.** {pause_reason[0].upper() + pause_reason[1:]}.")
+    if div_rows:
+        summary.append("\n**Dividends booked**: " + ", ".join(f"{d['symbol']} {money(d['amount'])} (ex {d['ex_date']})" for d in div_rows) + ".")
     if trade_rows:
         summary.append("\n**Closed today**\n\n| Stock | Strategy | Days | Return | P&L |\n|---|---|---|---|---|")
         summary += [f"| {t['symbol']} | {STRAT_LABEL.get(t['strategy'], t['strategy'])} | {t['days_held']} | {t['return_pct']:+.2f}% | {money(t['pnl'], True)} |" for t in trade_rows]
@@ -400,6 +459,7 @@ def run(api, cfg, state_dir, dry_run=False, symbols=None, log=print):
         log_rows(state_dir, "trades.csv", trade_rows)
         log_rows(state_dir, "signals.csv", signal_rows)
         log_rows(state_dir, "equity.csv", [eq_row])
+        log_rows(state_dir, "dividends.csv", div_rows)
     return {"session": session, "equity": equity, "orders": new_orders, "trades": trade_rows, "summary": text, "market": reg,
             "paused": paused, "pause_reason": pause_reason}
 
