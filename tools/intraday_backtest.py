@@ -94,14 +94,14 @@ def get(url, key, secret):
 
 
 def load(path):
-    """{date: [(minute_of_day, o, h, l, c), ...]} regular session only."""
+    """{date: [(minute_of_day, o, h, l, c, v), ...]} regular session only."""
     days = defaultdict(list)
     with gzip.open(path, "rt") as f:
         for t, o, h, l, c, v in csv.reader(f):
             dt = datetime.fromisoformat(t.replace("Z", "+00:00")).astimezone(NY)
             m = dt.hour * 60 + dt.minute
             if 570 <= m < 960:
-                days[dt.date().isoformat()].append((m, float(o), float(h), float(l), float(c)))
+                days[dt.date().isoformat()].append((m, float(o), float(h), float(l), float(c), float(v)))
     for d in days:
         days[d].sort()
     return days

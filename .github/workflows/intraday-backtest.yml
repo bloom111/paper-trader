@@ -1,12 +1,13 @@
 name: Intraday backtest
 
-# Research only: downloads 5-minute bars from Alpaca and backtests an opening-range breakout after IBKR fees.
+# Research only: downloads 5-minute bars from Alpaca and backtests an opening-range breakout and a
+# day-regime-filtered ORB / VWAP reversion strategy after IBKR fees.
 # Places no orders and never touches the bots' state. Saves results/intraday/ to the branch it ran on.
 on:
   workflow_dispatch:
   push:
     branches: ["claude/**"]
-    paths: ["tools/intraday_backtest.py", ".github/workflows/intraday-backtest.yml"]
+    paths: ["tools/intraday_backtest.py", "tools/intraday_regime_backtest.py", ".github/workflows/intraday-backtest.yml"]
 
 permissions:
   contents: write
@@ -32,7 +33,9 @@ jobs:
         env:
           ALPACA_KEY_ID: ${{ secrets.ALPACA_KEY_ID }}
           ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
-        run: python tools/intraday_backtest.py
+        run: |
+          python tools/intraday_backtest.py
+          python tools/intraday_regime_backtest.py
       - name: Save results to the branch
         run: |
           git config user.name "paper-trader"
