@@ -1,3 +1,4 @@
-session,cash,positions_value,equity,open_positions,spy_close,fees_paid_total,market,trend,volatility,strategy
-2026-11-24,2500.0,0,2500.0,0,718.78,0.0,downWild,-0.0162,0.31767,sma
-2026-11-25,2500.0,0,2500.0,0,716.7,0.0,downWild,-0.01925,0.31665,rsi
+session,cash,positions_value,equity,open_positions,spy_close,fees_paid_total,market,trend,volatility,strategy,dividends_total
+2026-11-24,2500.0,0,2500.0,0,718.78,0.0,downWild,-0.0162,0.31767,sma,
+2026-11-25,2500.0,0,2500.0,0,716.7,0.0,downWild,-0.01925,0.31665,rsi,
+2026-11-27,2500.0,0,2500.0,0,728.32,0.0,downWild,-0.00363,0.32437,rsi,0.0
