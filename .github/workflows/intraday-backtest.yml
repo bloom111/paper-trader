@@ -1,0 +1,43 @@
+name: Intraday backtest
+
+# Research only: downloads 5-minute bars from Alpaca and backtests an opening-range breakout after IBKR fees.
+# Places no orders and never touches the bots' state. Saves results/intraday/ to the branch it ran on.
+on:
+  workflow_dispatch:
+  push:
+    branches: ["claude/**"]
+    paths: ["tools/intraday_backtest.py", ".github/workflows/intraday-backtest.yml"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: intraday-backtest-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/cache@v4
+        with:
+          path: data/intraday_cache
+          key: intraday-bars-v1
+      - name: Backtest
+        env:
+          ALPACA_KEY_ID: ${{ secrets.ALPACA_KEY_ID }}
+          ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
+        run: python tools/intraday_backtest.py
+      - name: Save results to the branch
+        run: |
+          git config user.name "paper-trader"
+          git config user.email "paper-trader@users.noreply.github.com"
+          git add results/intraday
+          git diff --cached --quiet || git commit -m "Intraday backtest results $(date -u +%F)"
+          git pull --rebase --quiet || true
+          git push
